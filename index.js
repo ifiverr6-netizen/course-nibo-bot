@@ -139,11 +139,11 @@ bot.action('view_courses', async (ctx) => {
   safeReply(ctx, `📚 <b>Digital Courses</b>\n${DIVIDER}\n\nআপনি কোন কোর্সটি নিতে চান?`, {
     parse_mode: 'HTML',
     ...Markup.inlineKeyboard([
-      [Markup.button.callback('🇯🇵 Complete Japanese Language — 199 BDT', 'buy_japanese')],
-      [Markup.button.callback('📘 Banglay IELTS — 299 BDT', 'buy_ielts')],
-      [Markup.button.callback('💰 কোটি টাকার বিজনেস ফর্মুলা — 199 BDT', 'buy_business')],
-      [Markup.button.callback('🎬 Video Editing by Rafayat Rakib — 199 BDT', 'buy_editing')],
-      [Markup.button.callback('🎥 Premiere Pro + After Effects — 299 BDT', 'buy_premiere')],
+      [Markup.button.callback('🇯🇵 Complete Japanese Language ', 'buy_japanese')],
+      [Markup.button.callback('📘 Banglay IELTS ', 'buy_ielts')],
+      [Markup.button.callback('💰 কোটি টাকার বিজনেস ফর্মুলা', 'buy_business')],
+      [Markup.button.callback('🎬 Video Editing by Rafayat Rakib', 'buy_editing')],
+      [Markup.button.callback('🎥 Premiere Pro + After Effects', 'buy_premiere')],
       [Markup.button.callback('🔙 Main Menu', 'main_menu')]
     ])
   });
