@@ -1,0 +1,21 @@
+{
+  "name": "course-nibo-final",
+  "version": "3.0.0",
+  "description": "Course Nibo - Production Hybrid Bot with Sinthiya AI + SQLite",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.5.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "groq-sdk": "^0.5.0",
+    "telegraf": "^4.16.3"
+  },
+  "engines": {
+    "node": "20.x"
+  },
+  "license": "MIT"
+}
