@@ -175,7 +175,7 @@ function createBot() {
       });
     }
     setUserState(userId, { step: 'awaiting_screenshot' });
-    await safeReply(ctx, `💳 <b>পেমেন্ট শুরু হয়েছে</b>\n\nএখন আপনার <b>Payment Screenshot</b> পাঠান।\n\nScreenshot পাঠানোর পর Transaction ID চাওয়া হবে।`, {
+    await safeReply(ctx, `💳 <b>পেমেন্ট শুরু হয়েছে</b>\n\nএখন আপনার <b>Payment Screenshot</b> পাঠান।\n\nScreenshot পাঠানোর পর Transaction ID চাওয়া হবে।`, {
       parse_mode: 'HTML'
     });
   });
@@ -275,10 +275,17 @@ function createBot() {
       const memory = getConversation(userId);
       memory.customerName = userName;
 
-      // Check if user wants to buy a specific product
-      const lower = text.toLowerCase();
+      // Buying intent (নিব/কিনব ইত্যাদি) ও Negotiation intent (দাম কমানোর কথা) আলাদা করে চেনা হচ্ছে
       const buyIntent = /(নিব|কিনব|নিতে চাই|কিনতে চাই|order|পেমেন্ট|payment|দাম|price|card|কার্ড|দেখাও|দেখতে চাই|কিনবো|নিতে চাচ্ছি)/i.test(text);
-      const matchedProduct = findProductByText(text);
+      const negoIntent = /(দেই|দিব\b|দিমু|দিতে চাই|কম|কমান|কমাও|discount|ডিসকাউন্ট)/i.test(text) || /\d{2,4}\s*(টাকা|tk|৳)?/i.test(text);
+
+      let matchedProduct = findProductByText(text);
+
+      // ★ FIX: text-এ প্রোডাক্টের নাম না থাকলে, আগে থেকে সিলেক্ট করা প্রোডাক্ট (conversation context) থেকে নেওয়া হচ্ছে
+      // ৬টা প্রোডাক্টের মধ্যে কোনটা বোঝানো হচ্ছে তা context ছাড়া guess করা হয় না — ভুল প্রোডাক্টের card এড়াতে
+      if (!matchedProduct && memory.selectedProduct) {
+        matchedProduct = getProduct(memory.selectedProduct);
+      }
 
       // If user asks for course card/list without specific product → show courses menu
       if (/(card|কার্ড|কোর্স.*দেখ|course.*list|সব কোর্স)/i.test(text) && !matchedProduct && state.step === 'home') {
@@ -289,8 +296,41 @@ function createBot() {
         return;
       }
 
-      if (buyIntent && matchedProduct && state.step === 'home') {
-        // Send product card directly
+      // ★ FIX: buying intent থাকলেও, কোন প্রোডাক্ট বোঝানো হচ্ছে সেটা যদি এখনো অজানা থাকে
+      // (matchedProduct null), তাহলে card না পাঠিয়ে বরং Courses মেনু দেখানো হচ্ছে —
+      // যাতে কাস্টমার নিজেই এক ট্যাপে সঠিক কোর্স বেছে নিতে পারে (ভুল প্রোডাক্ট এড়াতে)
+      if (buyIntent && !matchedProduct && state.step === 'home') {
+        await safeReply(ctx, `😊 অবশ্যই! কোন কোর্সটি নিতে চান, নিচ থেকে বেছে নিন:`, {
+          parse_mode: 'HTML',
+          ...coursesKeyboard()
+        });
+        return;
+      }
+
+      // Normal Sinthiya reply আগে পাঠানো হচ্ছে
+      const aiReply = await generateReply(memory, text);
+      if (aiReply) {
+        // ★ Safety net: AI ভুলে **bold** (markdown) পাঠালেও তা <b>bold</b> (HTML) এ কনভার্ট হবে,
+        // নাহলে parse_mode HTML-এ শুধু স্টার (**) চিহ্ন দেখাবে, বোল্ড হবে না
+        const clean = aiReply
+          .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+          .replace(/(?<!<)\*(.*?)\*(?!>)/g, '<b>$1</b>');
+        addMessageToHistory(memory, 'user', text);
+        addMessageToHistory(memory, 'assistant', clean);
+        if (matchedProduct) memory.selectedProduct = matchedProduct.code;
+        saveConversation(memory);
+        await safeReply(ctx, clean, { parse_mode: 'HTML' });
+      } else {
+        const now = Date.now();
+        if (now - (state.lastSupportMessage || 0) > SUPPORT_COOLDOWN_MS) {
+          setUserState(userId, { lastSupportMessage: now });
+          await safeReply(ctx, `✅ <b>মেসেজ গ্রহণ করা হয়েছে</b>\n\nআমাদের টিম যত দ্রুত সম্ভব আপনার সাথে যোগাযোগ করবে।`, { parse_mode: 'HTML' });
+        }
+      }
+
+      // ★ FIX: AI reply-র পরে, buying অথবা negotiation (দাম নিয়ে কথা) — দুই ক্ষেত্রেই
+      // matchedProduct (context সহ) থাকলে সাথে সাথে Product Card পাঠানো হচ্ছে
+      if ((buyIntent || negoIntent) && matchedProduct && (state.step === 'home' || state.step === 'awaiting_screenshot')) {
         const existing = findPendingOrder(userId, matchedProduct.code);
         if (existing) {
           await safeReply(ctx, `⏳ আপনার একটি অর্ডার ইতিমধ্যে যাচাইয়ের অপেক্ষায় আছে।\nOrder ID: <code>${existing.order_id}</code>`, {
@@ -320,22 +360,6 @@ function createBot() {
         });
         if (!sent) {
           await safeReply(ctx, caption, { parse_mode: 'HTML', ...productActionsKeyboard() });
-        }
-        return;
-      }
-
-      // Normal Sinthiya reply
-      const aiReply = await generateReply(memory, text);
-      if (aiReply) {
-        addMessageToHistory(memory, 'user', text);
-        addMessageToHistory(memory, 'assistant', aiReply);
-        saveConversation(memory);
-        await safeReply(ctx, aiReply, { parse_mode: 'HTML' });
-      } else {
-        const now = Date.now();
-        if (now - (state.lastSupportMessage || 0) > SUPPORT_COOLDOWN_MS) {
-          setUserState(userId, { lastSupportMessage: now });
-          await safeReply(ctx, `✅ <b>মেসেজ গ্রহণ করা হয়েছে</b>\n\nআমাদের টিম যত দ্রুত সম্ভব আপনার সাথে যোগাযোগ করবে।`, { parse_mode: 'HTML' });
         }
       }
     }
