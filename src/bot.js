@@ -305,7 +305,7 @@ function createBot() {
         // তাহলে "হয়তো Available আছে" মেসেজ দেখানো হবে, ভুল ধারণা এড়াতে
         const wordCount = text.split(/\s+/).filter(Boolean).length;
         if (wordCount > 2) {
-          await safeReply(ctx, `😊 <b>Maybe কোর্সটি Available আছে।</b>\n<b>আমাদের টিম আপনার সাথে খুব দ্রুত যোগাযোগ করবে</b> আর <b>আপনার মেসেজটি এডমিনের কাছে ফরওয়ার্ড করা হয়েছে।</b>
+          await safeReply(ctx, `😊 <b>Maybe কোর্সটি Available আছে।</b>\n<b>আমাদের টিম আপনার সাথে খুব দ্রুত যোগাযোগ করবে</b> আর <b>আপনার মেসেজটি এডমিনের কাছে ফরওয়ার্ড করা হয়েছে।</b>`, {
             parse_mode: 'HTML',
             ...coursesKeyboard()
           });
