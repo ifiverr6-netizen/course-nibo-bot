@@ -278,6 +278,32 @@ function createBot() {
       if (!matchedProduct && memory.selectedProduct) {
         matchedProduct = getProduct(memory.selectedProduct);
       }
+      // ★ Unknown Course Request
+      const isCourseRelated = /(কোর্স|course|শিখতে চাই|শেখা|tutorial|ক্লাস|batch|শিখব|শেখাতে|ক্লাস নিতে|শিখতে চাচ্ছি)/i.test(text);
+
+      if (isCourseRelated && !matchedProduct && state.step === 'home') {
+        await safeReply(ctx, `<b>দুঃখিত ভাই, এই কোর্সটি আমাদের ক্যাটালগে বর্তমানে নেই।
+Maybe এই কোর্সটি আমাদের কাছে Available আছে।
+
+আমাদের টিম খুব শীঘ্রই আপনার সাথে যোগাযোগ করবে।
+আপনার রিকোয়েস্টটি অ্যাডমিনের কাছে পাঠিয়ে দেওয়া হয়েছে।</b>`, {
+          parse_mode: 'HTML',
+          ...backToMenuKeyboard()
+        });
+
+        await safeSend(bot, config.adminId, `🔔 <b>Unknown Course Request</b>
+${DIVIDER}
+👤 <b>Customer:</b> ${escapeHtml(userName)}
+🆔 <b>Telegram ID:</b> <code>${userId}</code>
+🔗 Username: ${username ? '@' + escapeHtml(username) : 'N/A'}
+
+📝 <b>Message:</b>
+${escapeHtml(text)}`, {
+          parse_mode: 'HTML'
+        });
+
+        return;
+      }
 
       if (/(card|কার্ড|কোর্স.*দেখ|course.*list|সব কোর্স)/i.test(text) && !matchedProduct && state.step === 'home') {
         await safeReply(ctx, `📚 <b>আমাদের কোর্সসমূহ</b>\n\nনিচ থেকে বেছে নিন:`, {
