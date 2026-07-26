@@ -1,4 +1,4 @@
-const Groq = require('groq-sdk');
+    const Groq = require('groq-sdk');
 const config = require('../../config');
 const { buildMessages } = require('./promptBuilder');
 const logger = require('../../infrastructure/logger');
@@ -11,7 +11,7 @@ async function generateReply(memory, userMessage) {
   try {
     const messages = buildMessages(memory, userMessage);
     const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: 'openai/gpt-oss-120b', // ★ FIX: llama-3.3-70b-versatile ২০২৬ সালের আগস্টে decommission হয়ে যাচ্ছে, তাই Groq-এর recommended মডেলে পরিবর্তন করা হলো
       temperature: 0.6,
       max_tokens: 600, // বাড়ানো হলো (আগে 400 ছিল) — যাতে বাক্য মাঝপথে কেটে না যায়
       messages
