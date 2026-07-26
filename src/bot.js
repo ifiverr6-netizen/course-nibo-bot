@@ -50,29 +50,29 @@ ${DIVIDER}
 function productCardCaption(product, orderId) {
   return `🛒 <b>Order Summary</b>
 
-📦 Product: <b>${escapeHtml(product.title)}</b>
-💵 Price: <b>${escapeHtml(product.price)}</b>
+📦 <b>Product:<b> <b>${escapeHtml(product.title)}</b>
+💵 <b>Price:<b> <b>${escapeHtml(product.price)}</b>
 🆔 <b>Order ID:</b> <code>${orderId}</code>
 
 ${DIVIDER}
 
 💳 <b>Payment Information</b>
 
-আপনার অর্ডার সম্পন্ন করতে নিচের যেকোনো একটি Personal Account-এ "Send Money" করুন।
+আপনার অর্ডার সম্পন্ন করতে নিচের যেকোনো একটি<b>Personal Account-এ "Send Money"<b> করুন।
 
 🟢 <b>bKash (Personal)</b>
-📱 <code>${config.bkashNumber}</code>
+📱<b><code>${config.bkashNumber}</code><b>
 
 🟠 <b>Nagad (Personal)</b>
-📱 <code>${config.nagadNumber}</code>
+📱<b> <code>${config.nagadNumber}</code><b>
 
-📌 Payment করার পর:
-• Payment Screenshot পাঠান
-• Transaction ID পাঠান
+📌<b>Payment করার পর:<b>
+<b>• Payment Screenshot পাঠান<b>
+<b>• Transaction ID পাঠান<b>
 
-⏱️ Verification: সাধারণত ৫–১০ মিনিট।
+⏱️ <b>Verification:<b> সাধারণত ৫–১০ মিনিট।
 
-Verification সম্পন্ন হলে আপনার Product Access এই চ্যাটেই পাঠিয়ে দেওয়া হবে।`;
+<b>Verification সম্পন্ন হলে আপনার Product Access এই চ্যাটেই পাঠিয়ে দেওয়া হবে।<b>`;
 }
 
 function createBot() {
@@ -105,7 +105,7 @@ function createBot() {
   // MENUS
   bot.action('view_courses', async (ctx) => {
     await ctx.answerCbQuery();
-    await safeReply(ctx, `📚 <b>Digital Courses</b>\n${DIVIDER}\n\nআপনি কোন কোর্সটি নিতে চান?`, {
+    await safeReply(ctx, `📚 <b>Digital Courses</b>\n${DIVIDER}\n\n<b>আপনি কোন কোর্সটি নিতে চান?<b>`, {
       parse_mode: 'HTML',
       ...coursesKeyboard()
     });
@@ -113,7 +113,7 @@ function createBot() {
 
   bot.action('view_subs', async (ctx) => {
     await ctx.answerCbQuery();
-    await safeReply(ctx, `⭐ <b>Premium Subscription</b>\n${DIVIDER}\n\nআপনার পছন্দের প্ল্যান বেছে নিন।`, {
+    await safeReply(ctx, `⭐ <b>Premium Subscription</b>\n${DIVIDER}\n\n<b>আপনার পছন্দের প্ল্যান বেছে নিন।<b>`, {
       parse_mode: 'HTML',
       ...subsKeyboard()
     });
