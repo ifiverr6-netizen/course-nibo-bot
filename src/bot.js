@@ -23,56 +23,40 @@ function isAdmin(ctx) {
 
 function welcomeText(name) {
   return `👋 <b>আসসালামু আলাইকুম, ${escapeHtml(name)}!</b>
-
 🌟 <b>Course Nibo</b>-তে আপনাকে স্বাগতম।
-
 ${DIVIDER}
-
 📚 <b>আমাদের সার্ভিসসমূহ</b>
 ✨ Premium Digital Courses
 🤖 ChatGPT Go
 🎬 Video Editing Courses
 💼 Business Formula
-
 ${DIVIDER}
-
 💎 <b>কেন আমাদের বেছে নেবেন?</b>
 ✅ দ্রুত ডেলিভারি (৫-১০ মিনিট)
 ✅ বিশ্বস্ত ও নিরাপদ সার্ভিস
 ✅ Personal Account-এ পেমেন্ট
 ✅ ২৪/৭ সাপোর্ট
-
 ${DIVIDER}
-
 👇 <b>নিচের মেনু থেকে আপনার পছন্দের অপশন বেছে নিন।</b>`;
 }
 
 function productCardCaption(product, orderId) {
   return `🛒 <b>Order Summary</b>
-
-📦 <b>Product:<b> <b>${escapeHtml(product.title)}</b>
-💵 <b>Price:<b> <b>${escapeHtml(product.price)}</b>
+📦 <b>Product:</b> <b>${escapeHtml(product.title)}</b>
+💵 <b>Price:</b> <b>${escapeHtml(product.price)}</b>
 🆔 <b>Order ID:</b> <code>${orderId}</code>
-
 ${DIVIDER}
-
 💳 <b>Payment Information</b>
-
-আপনার অর্ডার সম্পন্ন করতে নিচের যেকোনো একটি<b>Personal Account-এ "Send Money"<b> করুন।
-
+আপনার অর্ডার সম্পন্ন করতে নিচের যেকোনো একটি Personal Account-এ "Send Money" করুন।
 🟢 <b>bKash (Personal)</b>
-📱<b><code>${config.bkashNumber}</code><b>
-
+📱 <code>${config.bkashNumber}</code>
 🟠 <b>Nagad (Personal)</b>
-📱<b> <code>${config.nagadNumber}</code><b>
-
-📌<b>Payment করার পর:<b>
-<b>• Payment Screenshot পাঠান<b>
-<b>• Transaction ID পাঠান<b>
-
-⏱️ <b>Verification:<b> সাধারণত ৫–১০ মিনিট।
-
-<b>Verification সম্পন্ন হলে আপনার Product Access এই চ্যাটেই পাঠিয়ে দেওয়া হবে।<b>`;
+📱 <code>${config.nagadNumber}</code>
+📌 <b>Payment করার পর:</b>
+• Payment Screenshot পাঠান
+• Transaction ID পাঠান
+⏱️ <b>Verification:</b> সাধারণত ৫–১০ মিনিট।
+Verification সম্পন্ন হলে আপনার Product Access এই চ্যাটেই পাঠিয়ে দেওয়া হবে।`;
 }
 
 function createBot() {
@@ -86,7 +70,6 @@ function createBot() {
     mem.customerName = ctx.from.first_name || '';
     mem.conversationStage = 'Greeting';
     saveConversation(mem);
-
     await safeReply(ctx, welcomeText(ctx.from.first_name || 'Customer'), {
       parse_mode: 'HTML',
       ...mainMenuKeyboard()
@@ -105,7 +88,7 @@ function createBot() {
   // MENUS
   bot.action('view_courses', async (ctx) => {
     await ctx.answerCbQuery();
-    await safeReply(ctx, `📚 <b>Digital Courses</b>\n${DIVIDER}\n\n<b>আপনি কোন কোর্সটি নিতে চান?<b>`, {
+    await safeReply(ctx, `📚 <b>Digital Courses</b>\n${DIVIDER}\n\nআপনি কোন কোর্সটি নিতে চান?`, {
       parse_mode: 'HTML',
       ...coursesKeyboard()
     });
@@ -113,7 +96,7 @@ function createBot() {
 
   bot.action('view_subs', async (ctx) => {
     await ctx.answerCbQuery();
-    await safeReply(ctx, `⭐ <b>Premium Subscription</b>\n${DIVIDER}\n\n<b>আপনার পছন্দের প্ল্যান বেছে নিন।<b>`, {
+    await safeReply(ctx, `⭐ <b>Premium Subscription</b>\n${DIVIDER}\n\nআপনার পছন্দের প্ল্যান বেছে নিন।`, {
       parse_mode: 'HTML',
       ...subsKeyboard()
     });
@@ -161,7 +144,9 @@ function createBot() {
 
   bot.action('submit_trx', async (ctx) => {
     await ctx.answerCbQuery();
-    await safeReply(ctx, `📝 <b>অর্ডার সম্পন্ন করার নিয়ম</b>\n${DIVIDER}\n\n<b>ধাপ ১️⃣ — পেমেন্টের স্ক্রিনশট পাঠান</b>\n<b>ধাপ ২️⃣ — Transaction ID (৮–১০ অক্ষর) পাঠান</b>\n<b>ধাপ ৩️⃣ — ভেরিফিকেশনের জন্য অপেক্ষা করুন</b>\n<b>ধাপ ৪️⃣ — প্রোডাক্ট গ্রহণ করুন</b>`, { parse_mode: 'HTML' });
+    await safeReply(ctx, `📝 <b>অর্ডার সম্পন্ন করার নিয়ম</b>\n${DIVIDER}\n\n<b>ধাপ ১️⃣ — পেমেন্টের স্ক্রিনশট পাঠান</b>\n<b>ধাপ ২️⃣ — Transaction ID (৮–১০ অক্ষর) পাঠান</b>\n<b>ধাপ ৩️⃣ — ভেরিফিকেশনের জন্য অপেক্ষা করুন</b>\n<b>ধাপ ৪️⃣ — প্রোডাক্ট গ্রহণ করুন</b>`, {
+      parse_mode: 'HTML'
+    });
   });
 
   bot.action('start_payment', async (ctx) => {
@@ -188,12 +173,18 @@ function createBot() {
 
     if (state.step === 'awaiting_screenshot') {
       setUserState(userId, { step: 'awaiting_trx', screenshotFileId: fileId });
-      return safeReply(ctx, `✅ <b>Payment Screenshot Received</b>\n${DIVIDER}\n\nএখন আপনার ৮–১০ অক্ষরের <b>Transaction ID</b> লিখে পাঠান।`, { parse_mode: 'HTML' });
+      return safeReply(ctx, `✅ <b>Payment Screenshot Received</b>\n${DIVIDER}\n\nএখন আপনার ৮–১০ অক্ষরের <b>Transaction ID</b> লিখে পাঠান।`, {
+        parse_mode: 'HTML'
+      });
     }
+
     if (state.step === 'awaiting_trx') {
       setUserState(userId, { screenshotFileId: fileId });
-      return safeReply(ctx, `✅ <b>Screenshot Updated</b>\n\nএখন আপনার Transaction ID লিখে পাঠান।`, { parse_mode: 'HTML' });
+      return safeReply(ctx, `✅ <b>Screenshot Updated</b>\n\nএখন আপনার Transaction ID লিখে পাঠান।`, {
+        parse_mode: 'HTML'
+      });
     }
+
     return safeReply(ctx, `⚠️ <b>কোনো সক্রিয় অর্ডার পাওয়া যায়নি</b>\n\nদয়া করে প্রথমে মেনু থেকে একটি প্রোডাক্ট সিলেক্ট করুন।`, {
       parse_mode: 'HTML',
       ...backToMenuKeyboard()
@@ -217,11 +208,17 @@ function createBot() {
           ...backToMenuKeyboard()
         });
       }
+
       if (state.step === 'awaiting_screenshot' || !state.screenshotFileId) {
-        return safeReply(ctx, `⚠️ <b>প্রথমে Payment Screenshot পাঠান</b>`, { parse_mode: 'HTML' });
+        return safeReply(ctx, `⚠️ <b>প্রথমে Payment Screenshot পাঠান</b>`, {
+          parse_mode: 'HTML'
+        });
       }
+
       if (isTrxUsed(text)) {
-        return safeReply(ctx, `❌ <b>এই Transaction ID ইতিমধ্যে ব্যবহৃত হয়েছে</b>`, { parse_mode: 'HTML' });
+        return safeReply(ctx, `❌ <b>এই Transaction ID ইতিমধ্যে ব্যবহৃত হয়েছে</b>`, {
+          parse_mode: 'HTML'
+        });
       }
 
       const product = getProduct(state.product);
@@ -238,6 +235,7 @@ function createBot() {
         createdAt: Date.now(),
         createdAtText: nowBD()
       };
+
       createOrder(order);
 
       const mem = getConversation(userId);
@@ -246,13 +244,10 @@ function createBot() {
       saveConversation(mem);
 
       await safeReply(ctx, `🎉 <b>ধন্যবাদ, ${escapeHtml(userName)}!</b>
-
 আপনার Transaction ID সফলভাবে গ্রহণ করা হয়েছে।
-
 🆔 <b>Order ID:</b> <code>${state.orderId}</code>
 📦 <b>Product:</b> <b>${escapeHtml(product.title)}</b>
 📌 Status: <b>Pending Verification</b>
-
 ⏳ সাধারণত ৫–১০ মিনিটের মধ্যে ভেরিফাই হয়ে যায়।`, {
         parse_mode: 'HTML',
         ...backToMenuKeyboard()
@@ -275,19 +270,15 @@ function createBot() {
       const memory = getConversation(userId);
       memory.customerName = userName;
 
-      // Buying intent (নিব/কিনব ইত্যাদি) ও Negotiation intent (দাম কমানোর কথা) আলাদা করে চেনা হচ্ছে
       const buyIntent = /(নিব|কিনব|নিতে চাই|কিনতে চাই|order|পেমেন্ট|payment|দাম|price|card|কার্ড|দেখাও|দেখতে চাই|কিনবো|নিতে চাচ্ছি)/i.test(text);
       const negoIntent = /(দেই|দিব\b|দিমু|দিতে চাই|কম|কমান|কমাও|discount|ডিসকাউন্ট)/i.test(text) || /\d{2,4}\s*(টাকা|tk|৳)?/i.test(text);
 
       let matchedProduct = findProductByText(text);
 
-      // ★ FIX: text-এ প্রোডাক্টের নাম না থাকলে, আগে থেকে সিলেক্ট করা প্রোডাক্ট (conversation context) থেকে নেওয়া হচ্ছে
-      // ৬টা প্রোডাক্টের মধ্যে কোনটা বোঝানো হচ্ছে তা context ছাড়া guess করা হয় না — ভুল প্রোডাক্টের card এড়াতে
       if (!matchedProduct && memory.selectedProduct) {
         matchedProduct = getProduct(memory.selectedProduct);
       }
 
-      // If user asks for course card/list without specific product → show courses menu
       if (/(card|কার্ড|কোর্স.*দেখ|course.*list|সব কোর্স)/i.test(text) && !matchedProduct && state.step === 'home') {
         await safeReply(ctx, `📚 <b>আমাদের কোর্সসমূহ</b>\n\nনিচ থেকে বেছে নিন:`, {
           parse_mode: 'HTML',
@@ -296,9 +287,6 @@ function createBot() {
         return;
       }
 
-      // ★ FIX: buying intent থাকলেও, কোন প্রোডাক্ট বোঝানো হচ্ছে সেটা যদি এখনো অজানা থাকে
-      // (matchedProduct null), তাহলে card না পাঠিয়ে বরং Courses মেনু দেখানো হচ্ছে —
-      // যাতে কাস্টমার নিজেই এক ট্যাপে সঠিক কোর্স বেছে নিতে পারে (ভুল প্রোডাক্ট এড়াতে)
       if (buyIntent && !matchedProduct && state.step === 'home') {
         await safeReply(ctx, `😊 অবশ্যই! কোন কোর্সটি নিতে চান, নিচ থেকে বেছে নিন:`, {
           parse_mode: 'HTML',
@@ -307,14 +295,12 @@ function createBot() {
         return;
       }
 
-      // Normal Sinthiya reply আগে পাঠানো হচ্ছে
       const aiReply = await generateReply(memory, text);
       if (aiReply) {
-        // ★ Safety net: AI ভুলে **bold** (markdown) পাঠালেও তা <b>bold</b> (HTML) এ কনভার্ট হবে,
-        // নাহলে parse_mode HTML-এ শুধু স্টার (**) চিহ্ন দেখাবে, বোল্ড হবে না
         const clean = aiReply
           .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
           .replace(/(?<!<)\*(.*?)\*(?!>)/g, '<b>$1</b>');
+
         addMessageToHistory(memory, 'user', text);
         addMessageToHistory(memory, 'assistant', clean);
         if (matchedProduct) memory.selectedProduct = matchedProduct.code;
@@ -324,12 +310,12 @@ function createBot() {
         const now = Date.now();
         if (now - (state.lastSupportMessage || 0) > SUPPORT_COOLDOWN_MS) {
           setUserState(userId, { lastSupportMessage: now });
-          await safeReply(ctx, `✅ <b>মেসেজ গ্রহণ করা হয়েছে</b>\n\nআমাদের টিম যত দ্রুত সম্ভব আপনার সাথে যোগাযোগ করবে।`, { parse_mode: 'HTML' });
+          await safeReply(ctx, `✅ <b>মেসেজ গ্রহণ করা হয়েছে</b>\n\nআমাদের টিম যত দ্রুত সম্ভব আপনার সাথে যোগাযোগ করবে।`, {
+            parse_mode: 'HTML'
+          });
         }
       }
 
-      // ★ FIX: AI reply-র পরে, buying অথবা negotiation (দাম নিয়ে কথা) — দুই ক্ষেত্রেই
-      // matchedProduct (context সহ) থাকলে সাথে সাথে Product Card পাঠানো হচ্ছে
       if ((buyIntent || negoIntent) && matchedProduct && (state.step === 'home' || state.step === 'awaiting_screenshot')) {
         const existing = findPendingOrder(userId, matchedProduct.code);
         if (existing) {
@@ -375,12 +361,16 @@ function createBot() {
         ...backToMenuKeyboard()
       });
     }
+
     let msg = `📦 <b>My Orders</b>\n${DIVIDER}\n\n`;
     list.forEach((o, i) => {
       const p = getProduct(o.product);
       msg += `${i + 1}. 🆔 <b>Order ID:</b> <code>${o.order_id}</code>\n📦 Product: <b>${escapeHtml(p?.title || o.product)}</b>\n💵 <b>Price:</b> ${escapeHtml(o.price)}\n📌 <b>Status:</b> ${o.status}\n🕒 ${o.created_at_text}\n\n`;
     });
-    await safeReply(ctx, msg.trim(), { parse_mode: 'HTML', ...backToMenuKeyboard() });
+    await safeReply(ctx, msg.trim(), {
+      parse_mode: 'HTML',
+      ...backToMenuKeyboard()
+    });
   });
 
   // ADMIN
@@ -393,11 +383,14 @@ function createBot() {
     if (order.status !== 'Pending Verification') {
       return safeReply(ctx, `⚠️ Already processed.`, { parse_mode: 'HTML' });
     }
+
     updateOrderStatus(orderId, 'Delivered ✅');
     const product = getProduct(order.product);
     await ctx.editMessageReplyMarkup(undefined).catch(() => {});
     await safeReply(ctx, `✅ Order <code>${orderId}</code> approved.`, { parse_mode: 'HTML' });
-    await safeSend(bot, order.user_id, `🎉 <b>Payment Verified!</b>\n${DIVIDER}\n\n📦 Product: <b>${escapeHtml(product.title)}</b>\n✅ Status: Delivered\n\n🔗 Access:\n${product.access}\n\n${DIVIDER}\n🙏 ধন্যবাদ!\nসমস্যা হলে ${config.supportUsername} এ যোগাযোগ করুন।`, { parse_mode: 'HTML' });
+    await safeSend(bot, order.user_id, `🎉 <b>Payment Verified!</b>\n${DIVIDER}\n\n📦 Product: <b>${escapeHtml(product.title)}</b>\n✅ Status: Delivered\n\n🔗 Access:\n${product.access}\n\n${DIVIDER}\n🙏 ধন্যবাদ!\nসমস্যা হলে ${config.supportUsername} এ যোগাযোগ করুন।`, {
+      parse_mode: 'HTML'
+    });
   });
 
   bot.action(/^reject_(.+)$/, async (ctx) => {
@@ -409,6 +402,7 @@ function createBot() {
     if (order.status !== 'Pending Verification') {
       return safeReply(ctx, `⚠️ Already processed.`, { parse_mode: 'HTML' });
     }
+
     updateOrderStatus(orderId, 'Rejected ❌');
     const product = getProduct(order.product);
     await ctx.editMessageReplyMarkup(undefined).catch(() => {});
@@ -423,18 +417,13 @@ function createBot() {
   bot.action('faq', async (ctx) => {
     await ctx.answerCbQuery();
     await safeReply(ctx, `❓ <b>Frequently Asked Questions</b>
-
 ${DIVIDER}
-
 <b>১. ডেলিভারি পেতে কত সময় লাগে?</b>
 সাধারণত ৫–১০ মিনিটের মধ্যে।
-
 <b>২. কোন পেমেন্ট মেথড সাপোর্ট করে?</b>
 bKash এবং Nagad (Personal - Send Money)।
-
 <b>৩. Refund পাওয়া যায় কি?</b>
 Digital Product হওয়ায় Refund প্রযোজ্য নয়।
-
 <b>৪. সাপোর্ট কখন পাওয়া যায়?</b>
 প্রতিদিন সকাল ৯টা থেকে রাত ১২টা পর্যন্ত।`, {
       parse_mode: 'HTML',
@@ -445,11 +434,8 @@ Digital Product হওয়ায় Refund প্রযোজ্য নয়�
   bot.action('support', async (ctx) => {
     await ctx.answerCbQuery();
     await safeReply(ctx, `<b>কাস্টমার সাপোর্ট</b>
-
 কোনো প্রশ্ন বা সহায়তার প্রয়োজন হলে আমাদের অ্যাডমিনের সাথে যোগাযোগ করুন।
-
 👨‍💻 <b>Admin:</b> ${config.supportUsername}
-
 অথবা, আপনি সরাসরি এখানে মেসেজ লিখে পাঠাতে পারেন।`, {
       parse_mode: 'HTML',
       ...backToMenuKeyboard()
@@ -482,7 +468,6 @@ Digital Product হওয়ায় Refund প্রযোজ্য নয়�
   });
 
   bot.command('orders', async (ctx) => {
-    // reuse my_orders logic by triggering callback style
     const list = getUserOrders(ctx.from.id);
     if (!list.length) {
       return safeReply(ctx, `📦 <b>My Orders</b>\n\nআপনার এখনো কোনো অর্ডার নেই।`, {
@@ -490,12 +475,16 @@ Digital Product হওয়ায় Refund প্রযোজ্য নয়�
         ...backToMenuKeyboard()
       });
     }
+
     let msg = `📦 <b>My Orders</b>\n\n`;
     list.forEach((o, i) => {
       const p = getProduct(o.product);
       msg += `${i + 1}. 🆔 <b>Order ID:</b> <code>${o.order_id}</code>\n📦 Product: <b>${escapeHtml(p?.title || o.product)}</b>\n💵 <b>Price:</b> ${escapeHtml(o.price)}\n📌 <b>Status:</b> ${o.status}\n\n`;
     });
-    await safeReply(ctx, msg.trim(), { parse_mode: 'HTML', ...backToMenuKeyboard() });
+    await safeReply(ctx, msg.trim(), {
+      parse_mode: 'HTML',
+      ...backToMenuKeyboard()
+    });
   });
 
   bot.command('faq', async (ctx) => {
