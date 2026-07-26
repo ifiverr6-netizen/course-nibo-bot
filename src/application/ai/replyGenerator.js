@@ -13,7 +13,7 @@ async function generateReply(memory, userMessage) {
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       temperature: 0.6,
-      max_tokens: 600,
+      max_tokens: 600, // বাড়ানো হলো (আগে 400 ছিল) — যাতে বাক্য মাঝপথে কেটে না যায়
       messages
     });
     return completion.choices[0]?.message?.content?.trim() || null;
