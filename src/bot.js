@@ -108,7 +108,12 @@ function createBot() {
     const code = ctx.match[1];
     const userId = ctx.from.id;
     const product = getProduct(code);
-    if (!product) return;
+    if (!product) {
+      return safeReply(ctx, `⚠️ <b>প্রোডাক্টটি খুঁজে পাওয়া যায়নি</b>\n\nঅনুগ্রহ করে মেনু থেকে আবার চেষ্টা করুন।`, {
+        parse_mode: 'HTML',
+        ...backToMenuKeyboard()
+      });
+    }
 
     const existing = findPendingOrder(userId, code);
     if (existing) {
@@ -189,192 +194,6 @@ function createBot() {
       parse_mode: 'HTML',
       ...backToMenuKeyboard()
     });
-  });
-
-  // TEXT
-  bot.on('text', async (ctx) => {
-    const userId = ctx.from.id;
-    const userName = ctx.from.first_name || 'Customer';
-    const username = ctx.from.username;
-    const text = ctx.message.text.trim();
-    const state = getUserState(userId);
-    const isValidTrx = TRX_ID_REGEX.test(text);
-
-    // TRX Flow
-    if (isValidTrx) {
-      if (state.step !== 'awaiting_screenshot' && state.step !== 'awaiting_trx') {
-        return safeReply(ctx, `⚠️ <b>কোনো সক্রিয় অর্ডার পাওয়া যায়নি</b>\n\nপ্রথমে মেনু থেকে একটি প্রোডাক্ট সিলেক্ট করুন।`, {
-          parse_mode: 'HTML',
-          ...backToMenuKeyboard()
-        });
-      }
-
-      if (state.step === 'awaiting_screenshot' || !state.screenshotFileId) {
-        return safeReply(ctx, `⚠️ <b>প্রথমে Payment Screenshot পাঠান</b>`, {
-          parse_mode: 'HTML'
-        });
-      }
-
-      if (isTrxUsed(text)) {
-        return safeReply(ctx, `❌ <b>এই Transaction ID ইতিমধ্যে ব্যবহৃত হয়েছে</b>`, {
-          parse_mode: 'HTML'
-        });
-      }
-
-      const product = getProduct(state.product);
-      const order = {
-        orderId: state.orderId,
-        userId,
-        customerName: userName,
-        username: username || null,
-        product: state.product,
-        price: product.price,
-        trxId: text,
-        screenshotFileId: state.screenshotFileId,
-        status: 'Pending Verification',
-        createdAt: Date.now(),
-        createdAtText: nowBD()
-      };
-
-      createOrder(order);
-
-      const mem = getConversation(userId);
-      mem.paymentStatus = 'pending';
-      mem.conversationStage = 'Payment Pending';
-      saveConversation(mem);
-
-      await safeReply(ctx, `🎉 <b>ধন্যবাদ, ${escapeHtml(userName)}!</b>
-আপনার Transaction ID সফলভাবে গ্রহণ করা হয়েছে।
-🆔 <b>Order ID:</b> <code>${state.orderId}</code>
-📦 <b>Product:</b> <b>${escapeHtml(product.title)}</b>
-📌 Status: <b>Pending Verification</b>
-⏳ সাধারণত ৫–১০ মিনিটের মধ্যে ভেরিফাই হয়ে যায়।`, {
-        parse_mode: 'HTML',
-        ...backToMenuKeyboard()
-      });
-
-      await safeSendPhoto(bot, config.adminId, state.screenshotFileId, {
-        caption: `🆕 <b>New Order Received</b>\n${DIVIDER}\n\n👤 <b>Customer:</b> ${escapeHtml(userName)}\n🆔 <b>Telegram ID:</b> <code>${userId}</code>\n🔗 Username: ${username ? '@' + escapeHtml(username) : 'N/A'}\n\n${DIVIDER}\n📦 <b>Order ID:</b> <code>${state.orderId}</code>\n🛍️ <b>Product:</b> <b>${escapeHtml(product.title)}</b>\n💵 <b>Price:</b> <b>${escapeHtml(product.price)}</b>\n💳 <b>Transaction ID:</b> <code>${escapeHtml(text)}</code>\n🕒 <b>Time:</b> ${order.createdAtText}`,
-        parse_mode: 'HTML',
-        ...adminApprovalKeyboard(state.orderId)
-      });
-
-      resetUserState(userId);
-      return;
-    }
-
-    // Free text → Sinthiya + auto Product Card if purchase intent
-    if (!isAdmin(ctx)) {
-      await bot.telegram.forwardMessage(config.adminId, ctx.chat.id, ctx.message.message_id).catch(() => {});
-
-      const memory = getConversation(userId);
-      memory.customerName = userName;
-
-      const buyIntent = /(নিব|কিনব|নিতে চাই|কিনতে চাই|order|পেমেন্ট|payment|দাম|price|card|কার্ড|দেখাও|দেখতে চাই|কিনবো|নিতে চাচ্ছি)/i.test(text);
-      const negoIntent = /(দেই|দিব\b|দিমু|দিতে চাই|কম|কমান|কমাও|discount|ডিসকাউন্ট)/i.test(text) || /\d{2,4}\s*(টাকা|tk|৳)?/i.test(text);
-
-      let matchedProduct = findProductByText(text);
-
-      if (!matchedProduct && memory.selectedProduct) {
-        matchedProduct = getProduct(memory.selectedProduct);
-      }
-      // ★ Unknown Course Request
-      const isCourseRelated = /(কোর্স|course|শিখতে চাই|শেখা|tutorial|ক্লাস|batch|শিখব|শেখাতে|ক্লাস নিতে|শিখতে চাচ্ছি)/i.test(text);
-
-      if (isCourseRelated && !matchedProduct && state.step === 'home') {
-        await safeReply(ctx, `<b>দুঃখিত ভাই, এই কোর্সটি আমাদের ক্যাটালগে বর্তমানে নেই।
-Maybe এই কোর্সটি আমাদের কাছে Available আছে।
-
-আমাদের টিম খুব শীঘ্রই আপনার সাথে যোগাযোগ করবে।
-আপনার রিকোয়েস্টটি অ্যাডমিনের কাছে পাঠিয়ে দেওয়া হয়েছে।</b>`, {
-          parse_mode: 'HTML',
-          ...backToMenuKeyboard()
-        });
-
-        await safeSend(bot, config.adminId, `🔔 <b>Unknown Course Request</b>
-${DIVIDER}
-👤 <b>Customer:</b> ${escapeHtml(userName)}
-🆔 <b>Telegram ID:</b> <code>${userId}</code>
-🔗 Username: ${username ? '@' + escapeHtml(username) : 'N/A'}
-
-📝 <b>Message:</b>
-${escapeHtml(text)}`, {
-          parse_mode: 'HTML'
-        });
-
-        return;
-      }
-
-      if (/(card|কার্ড|কোর্স.*দেখ|course.*list|সব কোর্স)/i.test(text) && !matchedProduct && state.step === 'home') {
-        await safeReply(ctx, `📚 <b>আমাদের কোর্সসমূহ</b>\n\nনিচ থেকে বেছে নিন:`, {
-          parse_mode: 'HTML',
-          ...coursesKeyboard()
-        });
-        return;
-      }
-
-      if (buyIntent && !matchedProduct && state.step === 'home') {
-        await safeReply(ctx, `😊 অবশ্যই! কোন কোর্সটি নিতে চান, নিচ থেকে বেছে নিন:`, {
-          parse_mode: 'HTML',
-          ...coursesKeyboard()
-        });
-        return;
-      }
-
-      const aiReply = await generateReply(memory, text);
-      if (aiReply) {
-        const clean = aiReply
-          .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
-          .replace(/(?<!<)\*(.*?)\*(?!>)/g, '<b>$1</b>');
-
-        addMessageToHistory(memory, 'user', text);
-        addMessageToHistory(memory, 'assistant', clean);
-        if (matchedProduct) memory.selectedProduct = matchedProduct.code;
-        saveConversation(memory);
-        await safeReply(ctx, clean, { parse_mode: 'HTML' });
-      } else {
-        const now = Date.now();
-        if (now - (state.lastSupportMessage || 0) > SUPPORT_COOLDOWN_MS) {
-          setUserState(userId, { lastSupportMessage: now });
-          await safeReply(ctx, `✅ <b>মেসেজ গ্রহণ করা হয়েছে</b>\n\nআমাদের টিম যত দ্রুত সম্ভব আপনার সাথে যোগাযোগ করবে।`, {
-            parse_mode: 'HTML'
-          });
-        }
-      }
-
-      if ((buyIntent || negoIntent) && matchedProduct && (state.step === 'home' || state.step === 'awaiting_screenshot')) {
-        const existing = findPendingOrder(userId, matchedProduct.code);
-        if (existing) {
-          await safeReply(ctx, `⏳ আপনার একটি অর্ডার ইতিমধ্যে যাচাইয়ের অপেক্ষায় আছে।\nOrder ID: <code>${existing.order_id}</code>`, {
-            parse_mode: 'HTML',
-            ...backToMenuKeyboard()
-          });
-          return;
-        }
-
-        const orderId = generateOrderId();
-        setUserState(userId, {
-          step: 'awaiting_screenshot',
-          product: matchedProduct.code,
-          orderId,
-          screenshotFileId: null
-        });
-
-        memory.selectedProduct = matchedProduct.code;
-        memory.conversationStage = 'Product Selected';
-        saveConversation(memory);
-
-        const caption = productCardCaption(matchedProduct, orderId);
-        const sent = await safeReplyWithPhoto(ctx, matchedProduct.photo, {
-          caption,
-          parse_mode: 'HTML',
-          ...productActionsKeyboard()
-        });
-        if (!sent) {
-          await safeReply(ctx, caption, { parse_mode: 'HTML', ...productActionsKeyboard() });
-        }
-      }
-    }
   });
 
   // MY ORDERS
@@ -460,9 +279,9 @@ Digital Product হওয়ায় Refund প্রযোজ্য নয়�
   bot.action('support', async (ctx) => {
     await ctx.answerCbQuery();
     await safeReply(ctx, `<b>কাস্টমার সাপোর্ট</b>
-কোনো প্রশ্ন বা সহায়তার প্রয়োজন হলে আমাদের অ্যাডমিনের সাথে যোগাযোগ করুন।
+    <b>কোনো প্রশ্ন বা সহায়তার প্রয়োজন হলে আমাদের অ্যাডমিনের সাথে যোগাযোগ করুন।</b>
 👨‍💻 <b>Admin:</b> ${config.supportUsername}
-অথবা, আপনি সরাসরি এখানে মেসেজ লিখে পাঠাতে পারেন।`, {
+<b>অথবা, আপনি সরাসরি এখানে মেসেজ লিখে পাঠাতে পারেন।</b>`, {
       parse_mode: 'HTML',
       ...backToMenuKeyboard()
     });
@@ -478,7 +297,10 @@ Digital Product হওয়ায় Refund প্রযোজ্য নয়�
     { command: 'support', description: 'সাপোর্ট' }
   ]).catch(err => logger.warn('setMyCommands failed', err));
 
-  // Command handlers
+  // ★ FIX: Command handlers MUST be registered BEFORE bot.on('text'),
+  // otherwise Telegraf's generic text handler intercepts every command
+  // (since it runs first in the middleware chain and never calls next()),
+  // meaning /courses, /subs, /orders, /faq, /support would never fire.
   bot.command('courses', async (ctx) => {
     await safeReply(ctx, `📚 <b>Digital Courses</b>\n\nআপনি কোন কোর্সটি নিতে চান?`, {
       parse_mode: 'HTML',
@@ -525,6 +347,197 @@ Digital Product হওয়ায় Refund প্রযোজ্য নয়�
       parse_mode: 'HTML',
       ...backToMenuKeyboard()
     });
+  });
+
+  // TEXT
+  bot.on('text', async (ctx) => {
+    const userId = ctx.from.id;
+    const userName = ctx.from.first_name || 'Customer';
+    const username = ctx.from.username;
+    const text = ctx.message.text.trim();
+
+    // ★ FIX: ignore any slash-command that reaches here (e.g. an unknown
+    // command like /help), so it doesn't get forwarded to admin or sent
+    // into the AI reply / buy-intent flow as if it were normal customer text.
+    if (text.startsWith('/')) return;
+
+    const state = getUserState(userId);
+    const isValidTrx = TRX_ID_REGEX.test(text);
+
+    // TRX Flow
+    if (isValidTrx) {
+      if (state.step !== 'awaiting_screenshot' && state.step !== 'awaiting_trx') {
+        return safeReply(ctx, `⚠️ <b>কোনো সক্রিয় অর্ডার পাওয়া যায়নি</b>\n\nপ্রথমে মেনু থেকে একটি প্রোডাক্ট সিলেক্ট করুন।`, {
+          parse_mode: 'HTML',
+          ...backToMenuKeyboard()
+        });
+      }
+
+      if (state.step === 'awaiting_screenshot' || !state.screenshotFileId) {
+        return safeReply(ctx, `⚠️ <b>প্রথমে Payment Screenshot পাঠান</b>`, {
+          parse_mode: 'HTML'
+        });
+      }
+
+      if (isTrxUsed(text)) {
+        return safeReply(ctx, `❌ <b>এই Transaction ID ইতিমধ্যে ব্যবহৃত হয়েছে</b>`, {
+          parse_mode: 'HTML'
+        });
+      }
+
+      const product = getProduct(state.product);
+      const order = {
+        orderId: state.orderId,
+        userId,
+        customerName: userName,
+        username: username || null,
+        product: state.product,
+        price: product.price,
+        trxId: text,
+        screenshotFileId: state.screenshotFileId,
+        status: 'Pending Verification',
+        createdAt: Date.now(),
+        createdAtText: nowBD()
+      };
+
+      createOrder(order);
+
+      const mem = getConversation(userId);
+      mem.paymentStatus = 'pending';
+      mem.conversationStage = 'Payment Pending';
+      saveConversation(mem);
+
+      await safeReply(ctx, `🎉 <b>ধন্যবাদ, ${escapeHtml(userName)}!</b>
+আপনার Transaction ID সফলভাবে গ্রহণ করা হয়েছে।
+🆔 <b>Order ID:</b> <code>${state.orderId}</code>
+📦 <b>Product:</b> <b>${escapeHtml(product.title)}</b>
+📌 Status: <b>Pending Verification</b>
+⏳ সাধারণত ৫–১০ মিনিটের মধ্যে ভেরিফাই হয়ে যায়।`, {
+        parse_mode: 'HTML',
+        ...backToMenuKeyboard()
+      });
+
+      await safeSendPhoto(bot, config.adminId, state.screenshotFileId, {
+        caption: `🆕 <b>New Order Received</b>\n${DIVIDER}\n\n👤 <b>Customer:</b> ${escapeHtml(userName)}\n🆔 <b>Telegram ID:</b> <code>${userId}</code>\n🔗 Username: ${username ? '@' + escapeHtml(username) : 'N/A'}\n\n${DIVIDER}\n📦 <b>Order ID:</b> <code>${state.orderId}</code>\n🛍️ <b>Product:</b> <b>${escapeHtml(product.title)}</b>\n💵 <b>Price:</b> <b>${escapeHtml(product.price)}</b>\n💳 <b>Transaction ID:</b> <code>${escapeHtml(text)}</code>\n🕒 <b>Time:</b> ${order.createdAtText}`,
+        parse_mode: 'HTML',
+        ...adminApprovalKeyboard(state.orderId)
+      });
+
+      resetUserState(userId);
+      return;
+    }
+
+    // Free text → Sinthiya + auto Product Card if purchase intent
+    if (!isAdmin(ctx)) {
+      await bot.telegram.forwardMessage(config.adminId, ctx.chat.id, ctx.message.message_id).catch(() => {});
+
+      const memory = getConversation(userId);
+      memory.customerName = userName;
+
+      const buyIntent = /(নিব|কিনব|নিতে চাই|কিনতে চাই|order|পেমেন্ট|payment|দাম|price|card|কার্ড|দেখাও|দেখতে চাই|কিনবো|নিতে চাচ্ছি)/i.test(text);
+      const negoIntent = /(দেই|দিব\b|দিমু|দিতে চাই|কম|কমান|কমাও|discount|ডিসকাউন্ট)/i.test(text) || /\d{2,4}\s*(টাকা|tk|৳)?/i.test(text);
+
+      let matchedProduct = findProductByText(text);
+
+      if (!matchedProduct && memory.selectedProduct) {
+        matchedProduct = getProduct(memory.selectedProduct);
+      }
+      // ★ Unknown Course Request
+      const isCourseRelated = /(কোর্স|course|শিখতে চাই|শেখা|tutorial|ক্লাস|batch|শিখব|শেখাতে|ক্লাস নিতে|শিখতে চাচ্ছি)/i.test(text);
+
+      if (isCourseRelated && !matchedProduct && state.step === 'home') {
+        await safeReply(ctx, `<b>Maybe এই কোর্সটি আমাদের কাছে Available আছে।
+
+আমাদের টিম খুব শীঘ্রই আপনার সাথে যোগাযোগ করবে।
+আপনার রিকোয়েস্টটি অ্যাডমিনের কাছে পাঠিয়ে দেওয়া হয়েছে।</b>`, {
+          parse_mode: 'HTML',
+          ...backToMenuKeyboard()
+        });
+
+        await safeSend(bot, config.adminId, `🔔 <b>Unknown Course Request</b>
+${DIVIDER}
+👤 <b>Customer:</b> ${escapeHtml(userName)}
+🆔 <b>Telegram ID:</b> <code>${userId}</code>
+🔗 Username: ${username ? '@' + escapeHtml(username) : 'N/A'}
+
+📝 <b>Message:</b>
+${escapeHtml(text)}`, {
+          parse_mode: 'HTML'
+        });
+
+        return;
+      }
+
+      if (/(card|কার্ড|কোর্স.*দেখ|course.*list|সব কোর্স)/i.test(text) && !matchedProduct && state.step === 'home') {
+        await safeReply(ctx, `📚 <b>আমাদের কোর্সসমূহ</b>\n\nনিচ থেকে বেছে নিন:`, {
+          parse_mode: 'HTML',
+          ...coursesKeyboard()
+        });
+        return;
+      }
+
+      if (buyIntent && !matchedProduct && state.step === 'home') {
+        await safeReply(ctx, `😊 অবশ্যই! কোন কোর্সটি নিতে চান, নিচ থেকে বেছে নিন:`, {
+          parse_mode: 'HTML',
+          ...coursesKeyboard()
+        });
+        return;
+      }
+
+      const aiReply = await generateReply(memory, text);
+      if (aiReply) {
+        const clean = aiReply
+          .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+          .replace(/(?<!<)\*(.*?)\*(?!>)/g, '<b>$1</b>');
+
+        addMessageToHistory(memory, 'user', text);
+        addMessageToHistory(memory, 'assistant', clean);
+        if (matchedProduct) memory.selectedProduct = matchedProduct.code;
+        saveConversation(memory);
+        await safeReply(ctx, clean, { parse_mode: 'HTML' });
+      } else {
+        const now = Date.now();
+        if (now - (state.lastSupportMessage || 0) > SUPPORT_COOLDOWN_MS) {
+          setUserState(userId, { lastSupportMessage: now });
+          await safeReply(ctx, `✅ <b>মেসেজ গ্রহণ করা হয়েছে</b>\n\nআমাদের টিম যত দ্রুত সম্ভব আপনার সাথে যোগাযোগ করবে।`, {
+            parse_mode: 'HTML'
+          });
+        }
+      }
+
+      if ((buyIntent || negoIntent) && matchedProduct && (state.step === 'home' || state.step === 'awaiting_screenshot')) {
+        const existing = findPendingOrder(userId, matchedProduct.code);
+        if (existing) {
+          await safeReply(ctx, `⏳<b> আপনার একটি অর্ডার ইতিমধ্যে যাচাইয়ের অপেক্ষায় আছে।</b>\nOrder ID: <code>${existing.order_id}</code>`, {
+            parse_mode: 'HTML',
+            ...backToMenuKeyboard()
+          });
+          return;
+        }
+
+        const orderId = generateOrderId();
+        setUserState(userId, {
+          step: 'awaiting_screenshot',
+          product: matchedProduct.code,
+          orderId,
+          screenshotFileId: null
+        });
+
+        memory.selectedProduct = matchedProduct.code;
+        memory.conversationStage = 'Product Selected';
+        saveConversation(memory);
+
+        const caption = productCardCaption(matchedProduct, orderId);
+        const sent = await safeReplyWithPhoto(ctx, matchedProduct.photo, {
+          caption,
+          parse_mode: 'HTML',
+          ...productActionsKeyboard()
+        });
+        if (!sent) {
+          await safeReply(ctx, caption, { parse_mode: 'HTML', ...productActionsKeyboard() });
+        }
+      }
+    }
   });
 
   bot.catch((err) => logger.error('Bot error', err));
