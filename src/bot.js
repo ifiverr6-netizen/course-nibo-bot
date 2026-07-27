@@ -296,16 +296,11 @@ function createBot() {
       memory.customerName = userName;
 
       // Buying intent (নিব/কিনব ইত্যাদি) ও Negotiation intent (দাম কমানোর কথা) আলাদা করে চেনা হচ্ছে
-      const buyIntent = /(নিব|কিনব|নিতে চাই|কিনতে চাই|order|পেমেন্ট|payment|দাম|price|card|কার্ড|দেখাও|দেখতে চাই|কিনবো|নিতে চাচ্ছি|\bnibo\b|\bnibo?\b|\bnite\s*chai\b|\bchai\b|\bkinbo\b|\bkinte\s*chai\b|\blagbe\b|\bdorkar\b|\bnite\s*chacchi\b)/i.test(text);
+      const buyIntent = /(নিব|কিনব|নিতে চাই|কিনতে চাই|order|পেমেন্ট|payment|দাম|price|card|কার্ড|দেখাও|দেখতে চাই|কিনবো|নিতে চাচ্ছি|লাগবে|লাগবেই|চাই\b|নেব|প্রয়োজন|\bnibo\b|\bnite\s*chai\b|\bchai\b|\bkinbo\b|\bkinte\s*chai\b|\blagbe\b|\bdorkar\b|\bnite\s*chacchi\b)/i.test(text);
       const negoIntent = /(দেই|দিব\b|দিমু|দিতে চাই|কম|কমান|কমাও|discount|ডিসকাউন্ট)/i.test(text) || /\d{2,4}\s*(টাকা|tk|৳)?/i.test(text);
 
       let matchedProduct = findProductByText(text);
-
-      // ★ FIX: text-এ প্রোডাক্টের নাম না থাকলে, আগে থেকে সিলেক্ট করা প্রোডাক্ট (conversation context) থেকে নেওয়া হচ্ছে
-      // ৬টা প্রোডাক্টের মধ্যে কোনটা বোঝানো হচ্ছে তা context ছাড়া guess করা হয় না — ভুল প্রোডাক্টের card এড়াতে
-      if (!matchedProduct && memory.selectedProduct) {
-        matchedProduct = getProduct(memory.selectedProduct);
-      }
+      const wordCount = text.split(/\s+/).filter(Boolean).length;
 
       // If user asks for course card/list without specific product → show courses menu
       if (/(card|কার্ড|কোর্স.*দেখ|course.*list|সব কোর্স|কি কি কোর্স|কোর্স.*আছে|কোর্স.*কি|কোন কোন কোর্স)/i.test(text) && !matchedProduct && state.step === 'home') {
@@ -316,25 +311,30 @@ function createBot() {
         return;
       }
 
-      // ★ FIX: buying intent থাকলেও, কোন প্রোডাক্ট বোঝানো হচ্ছে সেটা যদি এখনো অজানা থাকে
-      // (matchedProduct null), তাহলে card না পাঠিয়ে বরং Courses মেনু দেখানো হচ্ছে —
-      // যাতে কাস্টমার নিজেই এক ট্যাপে সঠিক কোর্স বেছে নিতে পারে (ভুল প্রোডাক্ট এড়াতে)
+      // ★ FIX: যদি টেক্সটে ২ শব্দের বেশি থাকে (মানে কাস্টমার একটা নির্দিষ্ট, তালিকার বাইরের কোর্সের
+      // নাম বলেছে, যেমন "python course chai"), তাহলে memory.selectedProduct fallback প্রয়োগ করার
+      // *আগেই* এখানে থামিয়ে দেওয়া হচ্ছে — নাহলে ভুল করে আগের সিলেক্ট করা প্রোডাক্টের card চলে যায়
+      if (buyIntent && !matchedProduct && wordCount > 2 && state.step === 'home') {
+        await safeReply(ctx, `😊 <b>Maybe কোর্সটি Available আছে।</b>\n<b>আমাদের টিম আপনার সাথে খুব দ্রুত যোগাযোগ করবে</b> আর <b>আপনার মেসেজটি এডমিনের কাছে ফরওয়ার্ড করা হয়েছে।</b>`, {
+          parse_mode: 'HTML',
+          ...coursesKeyboard()
+        });
+        return;
+      }
+
+      // ★ FIX: text-এ প্রোডাক্টের নাম না থাকলে, আগে থেকে সিলেক্ট করা প্রোডাক্ট (conversation context) থেকে নেওয়া হচ্ছে
+      // এখানে আসার মানে হলো টেক্সট generic ("নিব"/"কিনব" জাতীয়, ২ শব্দ বা কম) — তাই context ব্যবহার নিরাপদ
+      if (!matchedProduct && memory.selectedProduct) {
+        matchedProduct = getProduct(memory.selectedProduct);
+      }
+
+      // ★ FIX: এখনো matchedProduct না পাওয়া গেলে (একদম নতুন কনভারসেশন, শুধু "নিব"/"কিনব")
+      // → Courses মেনু দেখানো হবে
       if (buyIntent && !matchedProduct && state.step === 'home') {
-        // শুধু "নিব"/"কিনব" জাতীয় জেনেরিক শব্দ (১-২ শব্দ) হলে সরাসরি Courses মেনু।
-        // কিন্তু যদি টেক্সটে বেশি শব্দ থাকে (মানে কাস্টমার একটা নির্দিষ্ট, তালিকার বাইরের কোর্সের নাম বলেছে),
-        // তাহলে "হয়তো Available আছে" মেসেজ দেখানো হবে, ভুল ধারণা এড়াতে
-        const wordCount = text.split(/\s+/).filter(Boolean).length;
-        if (wordCount > 2) {
-          await safeReply(ctx, `😊 <b>Maybe কোর্সটি Available আছে।</b>\n<b>আমাদের টিম আপনার সাথে খুব দ্রুত যোগাযোগ করবে</b> আর <b>আপনার মেসেজটি এডমিনের কাছে ফরওয়ার্ড করা হয়েছে।</b>`, {
-            parse_mode: 'HTML',
-            ...coursesKeyboard()
-          });
-        } else {
-          await safeReply(ctx, `😊 <b>অবশ্যই! কোন কোর্সটি নিতে চান, নিচ থেকে বেছে নিন:</b>`, {
-            parse_mode: 'HTML',
-            ...coursesKeyboard()
-          });
-        }
+        await safeReply(ctx, `😊 <b>অবশ্যই! কোন কোর্সটি নিতে চান, নিচ থেকে বেছে নিন:</b>`, {
+          parse_mode: 'HTML',
+          ...coursesKeyboard()
+        });
         return;
       }
 
