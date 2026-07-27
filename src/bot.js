@@ -13,10 +13,29 @@ const {
   mainMenuKeyboard, backToMenuKeyboard, coursesKeyboard, subsKeyboard,
   productActionsKeyboard, adminApprovalKeyboard
 } = require('./interfaces/keyboards/keyboards');
-const { statusBadge } = require('./utils/theme');
 
 const TRX_ID_REGEX = /^[A-Za-z0-9]{8,10}$/;
 const SUPPORT_COOLDOWN_MS = 5 * 60 * 1000;
+
+// ★ Inline theme helper (আলাদা ফাইল বাদ দেওয়া হলো — module missing এরর এড়াতে)
+function statusBadge(rawStatus) {
+  if (!rawStatus) return rawStatus;
+  if (rawStatus.startsWith('Pending')) return `🟡 <b>${rawStatus}</b>`;
+  if (rawStatus.startsWith('Delivered')) return `🟢 <b>${rawStatus}</b>`;
+  if (rawStatus.startsWith('Rejected')) return `🔴 <b>${rawStatus}</b>`;
+  return `<b>${rawStatus}</b>`;
+}
+
+// ★ Telegram শুধু নির্দিষ্ট কিছু HTML ট্যাগ সাপোর্ট করে (b, i, u, s, code, pre, a, blockquote)।
+// AI মাঝেমধ্যে <p>, <div>, <li> ইত্যাদি ট্যাগ পাঠিয়ে দিলে Telegram "can't parse entities" এরর দেয়।
+// এই ফাংশন সেগুলো ফিল্টার করে দেয়, শুধু সাপোর্টেড ট্যাগ রেখে।
+function sanitizeTelegramHtml(html) {
+  return html
+    .replace(/<\/?(p|div|br|li|ul|ol|h[1-6]|span)[^>]*>/gi, '\n')
+    .replace(/<\/?(?!b\b|strong\b|i\b|em\b|u\b|ins\b|s\b|strike\b|del\b|code\b|pre\b|a\b|blockquote\b)[a-zA-Z][a-zA-Z0-9]*(?:\s[^>]*)?>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
 
 function isAdmin(ctx) {
   return ctx.from && ctx.from.id.toString() === config.adminId.toString();
@@ -277,7 +296,7 @@ function createBot() {
       memory.customerName = userName;
 
       // Buying intent (নিব/কিনব ইত্যাদি) ও Negotiation intent (দাম কমানোর কথা) আলাদা করে চেনা হচ্ছে
-      const buyIntent = /(নিব|কিনব|নিতে চাই|কিনতে চাই|order|পেমেন্ট|payment|দাম|price|card|কার্ড|দেখাও|দেখতে চাই|কিনবো|নিতে চাচ্ছি)/i.test(text);
+      const buyIntent = /(নিব|কিনব|নিতে চাই|কিনতে চাই|order|পেমেন্ট|payment|দাম|price|card|কার্ড|দেখাও|দেখতে চাই|কিনবো|নিতে চাচ্ছি|\bnibo\b|\bnibo?\b|\bnite\s*chai\b|\bchai\b|\bkinbo\b|\bkinte\s*chai\b|\blagbe\b|\bdorkar\b|\bnite\s*chacchi\b)/i.test(text);
       const negoIntent = /(দেই|দিব\b|দিমু|দিতে চাই|কম|কমান|কমাও|discount|ডিসকাউন্ট)/i.test(text) || /\d{2,4}\s*(টাকা|tk|৳)?/i.test(text);
 
       let matchedProduct = findProductByText(text);
@@ -324,9 +343,12 @@ function createBot() {
       if (aiReply) {
         // ★ Safety net: AI ভুলে **bold** (markdown) পাঠালেও তা <b>bold</b> (HTML) এ কনভার্ট হবে,
         // নাহলে parse_mode HTML-এ শুধু স্টার (**) চিহ্ন দেখাবে, বোল্ড হবে না
-        const clean = aiReply
-          .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
-          .replace(/(?<!<)\*(.*?)\*(?!>)/g, '<b>$1</b>');
+        // ★ FIX: এরপর <p>/<div> ইত্যাদি Telegram-অসমর্থিত ট্যাগ ফিল্টার করা হচ্ছে (400 Bad Request এড়াতে)
+        const clean = sanitizeTelegramHtml(
+          aiReply
+            .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+            .replace(/(?<!<)\*(.*?)\*(?!>)/g, '<b>$1</b>')
+        );
         addMessageToHistory(memory, 'user', text);
         addMessageToHistory(memory, 'assistant', clean);
         if (matchedProduct) memory.selectedProduct = matchedProduct.code;
