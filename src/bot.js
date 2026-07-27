@@ -288,7 +288,7 @@ function createBot() {
       }
 
       // If user asks for course card/list without specific product → show courses menu
-      if (/(card|কার্ড|কোর্স.*দেখ|course.*list|সব কোর্স)/i.test(text) && !matchedProduct && state.step === 'home') {
+      if (/(card|কার্ড|কোর্স.*দেখ|course.*list|সব কোর্স|কি কি কোর্স|কোর্স.*আছে|কোর্স.*কি|কোন কোন কোর্স)/i.test(text) && !matchedProduct && state.step === 'home') {
         await safeReply(ctx, `📚 <b>আমাদের কোর্সসমূহ</b>\n\n<b>নিচ থেকে বেছে নিন:</b>`, {
           parse_mode: 'HTML',
           ...coursesKeyboard()
