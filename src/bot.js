@@ -13,6 +13,7 @@ const {
   mainMenuKeyboard, backToMenuKeyboard, coursesKeyboard, subsKeyboard,
   productActionsKeyboard, adminApprovalKeyboard
 } = require('./interfaces/keyboards/keyboards');
+const { statusBadge } = require('./utils/theme');
 
 const TRX_ID_REGEX = /^[A-Za-z0-9]{8,10}$/;
 const SUPPORT_COOLDOWN_MS = 5 * 60 * 1000;
@@ -251,7 +252,7 @@ function createBot() {
 
 🆔 <b>Order ID:</b> <code>${state.orderId}</code>
 📦 <b>Product:</b> <b>${escapeHtml(product.title)}</b>
-📌 <b>Status:</b> <b>Pending Verification</b>
+📌 <b>Status:</b> ${statusBadge('Pending Verification')}
 
 ⏳ <b>সাধারণত ৫–১০ মিনিটের মধ্যে ভেরিফাই হয়ে যায়।</b>`, {
         parse_mode: 'HTML',
@@ -389,7 +390,7 @@ function createBot() {
     let msg = `📦 <b>My Orders</b>\n${DIVIDER}\n\n`;
     list.forEach((o, i) => {
       const p = getProduct(o.product);
-      msg += `${i + 1}. 🆔 <b>Order ID:</b> <code>${o.order_id}</code>\n📦 <b>Product:</b> <b>${escapeHtml(p?.title || o.product)}</b>\n💵 <b>Price:</b> <b>${escapeHtml(o.price)}</b>\n📌 <b>Status:</b> <b>${o.status}</b>\n🕒 ${o.created_at_text}\n\n`;
+      msg += `${i + 1}. 🆔 <b>Order ID:</b> <code>${o.order_id}</code>\n📦 <b>Product:</b> <b>${escapeHtml(p?.title || o.product)}</b>\n💵 <b>Price:</b> <b>${escapeHtml(o.price)}</b>\n📌 <b>Status:</b> ${statusBadge(o.status)}\n🕒 ${o.created_at_text}\n\n`;
     });
     await safeReply(ctx, msg.trim(), { parse_mode: 'HTML', ...backToMenuKeyboard() });
   });
@@ -408,7 +409,7 @@ function createBot() {
     const product = getProduct(order.product);
     await ctx.editMessageReplyMarkup(undefined).catch(() => {});
     await safeReply(ctx, `✅ <b>Order <code>${orderId}</code> approved.</b>`, { parse_mode: 'HTML' });
-    await safeSend(bot, order.user_id, `🎉 <b>Payment Verified!</b>\n${DIVIDER}\n\n📦 <b>Product:</b> <b>${escapeHtml(product.title)}</b>\n✅ <b>Status:</b> <b>Delivered</b>\n\n🔗 <b>Access:</b>\n${product.access}\n\n${DIVIDER}\n🙏 <b>ধন্যবাদ!</b>\n<b>সমস্যা হলে ${config.supportUsername} এ যোগাযোগ করুন।</b>`, { parse_mode: 'HTML' });
+    await safeSend(bot, order.user_id, `🎉 <b>Payment Verified!</b>\n${DIVIDER}\n\n📦 <b>Product:</b> <b>${escapeHtml(product.title)}</b>\n${statusBadge('Delivered')}\n\n🔗 <b>Access:</b>\n${product.access}\n\n${DIVIDER}\n🙏 <b>ধন্যবাদ!</b>\n<b>সমস্যা হলে ${config.supportUsername} এ যোগাযোগ করুন।</b>`, { parse_mode: 'HTML' });
   });
 
   bot.action(/^reject_(.+)$/, async (ctx) => {
@@ -504,7 +505,7 @@ ${DIVIDER}
     let msg = `📦 <b>My Orders</b>\n\n`;
     list.forEach((o, i) => {
       const p = getProduct(o.product);
-      msg += `${i + 1}. 🆔 <b>Order ID:</b> <code>${o.order_id}</code>\n📦 <b>Product:</b> <b>${escapeHtml(p?.title || o.product)}</b>\n💵 <b>Price:</b> <b>${escapeHtml(o.price)}</b>\n📌 <b>Status:</b> <b>${o.status}</b>\n\n`;
+      msg += `${i + 1}. 🆔 <b>Order ID:</b> <code>${o.order_id}</code>\n📦 <b>Product:</b> <b>${escapeHtml(p?.title || o.product)}</b>\n💵 <b>Price:</b> <b>${escapeHtml(o.price)}</b>\n📌 <b>Status:</b> ${statusBadge(o.status)}\n\n`;
     });
     await safeReply(ctx, msg.trim(), { parse_mode: 'HTML', ...backToMenuKeyboard() });
   });
