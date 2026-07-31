@@ -8,22 +8,21 @@ const PRODUCTS = {
     category: 'course'
   },
   facebook_ads: {
-  code: 'facebook_ads',
-  title: 'Facebook Ads Mastery 2026',
-  price: '229 BDT',                     // ← তোমার price বসাও
-  photo: 'https://files.catbox.moe/nu6r5l.png',  // ← photo link দাও
-  access: 'https://t.me/+LS07n9sL3AhmOTQ9',      // ← access link
-  category: 'course'
-},
-
-gemini_pro: {
-  code: 'gemini_pro',
-  title: 'Gemini Pro (18 Month)',
-  price: '350 BDT',                     // ← price বসাও
-  photo: 'https://files.catbox.moe/s5rmcf.png',
-  access: 'send massage in bot',  // ← credentials
-  category: 'subscription'
-},
+    code: 'facebook_ads',
+    title: 'Facebook Ads Mastery 2026',
+    price: '229 BDT',
+    photo: 'https://i.ibb.co/hSvZws6/image.png',
+    access: 'https://t.me/+LS07n9sL3AhmOTQ9',
+    category: 'course'
+  },
+  gemini_pro: {
+    code: 'gemini_pro',
+    title: 'Gemini Pro (18 Month)',
+    price: '350 BDT',
+    photo: 'https://i.ibb.co/Rk2qdB4d/image.png',
+    access: 'send massage in bot',
+    category: 'subscription'
+  },
   ielts: {
     code: 'ielts',
     title: 'Banglay IELTS',
@@ -37,7 +36,7 @@ gemini_pro: {
     title: 'ChatGPT Go (3 Month)',
     price: '350 BDT',
     photo: 'https://files.catbox.moe/tziyuw.png',
-    access: 'Gmail: lee.4l3x+1@yandex.com\nPassword: I am Asif01580',
+    access: 'Contact admin for credentials',
     category: 'subscription'
   },
   business: {
@@ -87,7 +86,7 @@ function findProductByText(text = '') {
   return getAllProducts().find(p => {
     if (lower.includes(p.code)) return true;
     if (lower.includes(p.title.toLowerCase())) return true;
-    // common keywords
+    
     if (p.code === 'chatgpt_1m' && (lower.includes('chatgpt') || lower.includes('জিপিটি') || lower.includes('gpt'))) return true;
     if (p.code === 'japanese' && (lower.includes('japanese') || lower.includes('জাপানিজ') || lower.includes('জাপানি'))) return true;
     if (p.code === 'ielts' && lower.includes('ielts')) return true;
@@ -96,6 +95,7 @@ function findProductByText(text = '') {
     if (p.code === 'premiere' && (lower.includes('premiere') || lower.includes('after effect'))) return true;
     if (p.code === 'facebook_ads' && (lower.includes('facebook ads') || lower.includes('fb ads') || lower.includes('ফেসবুক অ্যাডস') || lower.includes('ফেসবুক এডস'))) return true;
     if (p.code === 'gemini_pro' && (lower.includes('gemini') || lower.includes('জেমিনি') || lower.includes('gemini pro'))) return true;
+    
     return false;
   });
 }
