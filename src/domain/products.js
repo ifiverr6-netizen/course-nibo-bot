@@ -7,6 +7,23 @@ const PRODUCTS = {
     access: 'https://drive.google.com/drive/folders/1FhGMWbEhC2mlwS-cyyidqA8IG2gkxW2z?usp=drive_link',
     category: 'course'
   },
+  facebook_ads: {
+  code: 'facebook_ads',
+  title: 'Facebook Ads Mastery 2026',
+  price: '229 BDT',                     // ← তোমার price বসাও
+  photo: 'https://files.catbox.moe/nu6r5l.png',  // ← photo link দাও
+  access: 'https://t.me/+LS07n9sL3AhmOTQ9',      // ← access link
+  category: 'course'
+},
+
+gemini_pro: {
+  code: 'gemini_pro',
+  title: 'Gemini Pro (18 Month)',
+  price: '350 BDT',                     // ← price বসাও
+  photo: 'https://files.catbox.moe/s5rmcf.png',
+  access: 'send massage in bot',  // ← credentials
+  category: 'subscription'
+},
   ielts: {
     code: 'ielts',
     title: 'Banglay IELTS',
@@ -77,6 +94,8 @@ function findProductByText(text = '') {
     if (p.code === 'business' && (lower.includes('বিজনেস') || lower.includes('business') || lower.includes('কোটি'))) return true;
     if (p.code === 'editing' && (lower.includes('rafayat') || lower.includes('রাফায়েত'))) return true;
     if (p.code === 'premiere' && (lower.includes('premiere') || lower.includes('after effect'))) return true;
+    if (p.code === 'facebook_ads' && (lower.includes('facebook ads') || lower.includes('fb ads') || lower.includes('ফেসবুক অ্যাডস') || lower.includes('ফেসবুক এডস'))) return true;
+    if (p.code === 'gemini_pro' && (lower.includes('gemini') || lower.includes('জেমিনি') || lower.includes('gemini pro'))) return true;
     return false;
   });
 }
