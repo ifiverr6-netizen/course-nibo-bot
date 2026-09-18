@@ -1,221 +1,154 @@
-const {
-  getDatabase
-} = require('../../database/db');
-
-const logger =
-  require('../../infrastructure/logger');
+const { db } = require('../../database/db');
+const logger = require('../../infrastructure/logger');
 
 
 /* =========================================================
-   CONSTANTS
+   CONFIGURATION
 ========================================================= */
 
 const MAX_HISTORY_MESSAGES = 20;
-
 const MAX_MESSAGE_LENGTH = 4000;
-
 const MAX_SUMMARY_LENGTH = 1200;
-
-const DEFAULT_STAGE = 'Greeting';
+const MAX_NAME_LENGTH = 120;
 
 
 /* =========================================================
-   HELPERS
+   NORMALIZATION HELPERS
 ========================================================= */
 
-/**
- * Convert any value into a safe string.
- */
-function safeString(value = '') {
-  return String(value ?? '').trim();
+function normalizeCustomerId(customerId) {
+  const id = Number(customerId);
+
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new Error('Invalid customer ID');
+  }
+
+  return id;
 }
 
 
-/**
- * Normalize customer name.
- */
-function normalizeCustomerName(name) {
-  const value =
-    safeString(name);
-
-  if (!value) {
-    return 'Customer';
+function normalizeText(value, maxLength = MAX_MESSAGE_LENGTH) {
+  if (value === null || value === undefined) {
+    return '';
   }
 
-  return value.slice(0, 100);
+  return String(value)
+    .trim()
+    .slice(0, maxLength);
 }
 
 
-/**
- * Normalize conversation stage.
- */
-function normalizeStage(stage) {
-  const value =
-    safeString(stage);
+function normalizeHistory(history) {
+  if (!Array.isArray(history)) {
+    return [];
+  }
 
-  return value
-    ? value.slice(0, 100)
-    : DEFAULT_STAGE;
+  return history
+    .filter((message) => {
+      return (
+        message &&
+        typeof message === 'object' &&
+        typeof message.role === 'string' &&
+        typeof message.content === 'string'
+      );
+    })
+    .slice(-MAX_HISTORY_MESSAGES)
+    .map((message) => ({
+      role: message.role,
+      content: normalizeText(message.content),
+      timestamp: Number(message.timestamp) || Date.now()
+    }));
 }
 
 
-/**
- * Keep conversation summary within a safe size.
- */
-function normalizeSummary(summary) {
-  const value =
-    safeString(summary);
+/* =========================================================
+   DEFAULT MEMORY
+========================================================= */
 
-  if (!value) {
-    return 'নতুন conversation';
-  }
-
-  return value.slice(
-    0,
-    MAX_SUMMARY_LENGTH
-  );
-}
-
-
-/**
- * Normalize selected product.
- *
- * This intentionally does not validate against products.js.
- * Product validation belongs to the domain layer.
- */
-function normalizeSelectedProduct(product) {
-  const value =
-    safeString(product);
-
-  return value
-    ? value.slice(0, 100)
-    : null;
-}
-
-
-/**
- * Normalize one history message.
- */
-function normalizeHistoryMessage(message) {
-  if (!message || typeof message !== 'object') {
-    return null;
-  }
-
-  const role =
-    safeString(message.role);
-
-  const content =
-    safeString(message.content);
-
-  if (!role || !content) {
-    return null;
-  }
-
-
-  /*
-   * Only conversation roles that are useful
-   * for the AI context are accepted.
-   */
-  const allowedRoles = new Set([
-    'user',
-    'assistant',
-    'system'
-  ]);
-
-  if (!allowedRoles.has(role)) {
-    return null;
-  }
-
-
+function createDefaultConversation(customerId) {
   return {
-    role,
-    content:
-      content.slice(
-        0,
-        MAX_MESSAGE_LENGTH
-      )
+    customerId: normalizeCustomerId(customerId),
+
+    customerName: '',
+
+    selectedProduct: null,
+
+    conversationStage: 'Greeting',
+
+    paymentStatus: 'none',
+
+    customerIntent: 'unknown',
+
+    conversationSummary: '',
+
+    customerEmotion: 'neutral',
+
+    messageHistory: [],
+
+    lastUpdated: Date.now()
   };
 }
 
 
-/**
- * Normalize complete memory object.
- */
-function normalizeMemory(memory = {}, userId = null) {
-  const source =
-    memory &&
-    typeof memory === 'object'
-      ? memory
-      : {};
+/* =========================================================
+   DATABASE ROW → MEMORY OBJECT
+========================================================= */
 
+function mapRowToConversation(row) {
+  if (!row) {
+    return null;
+  }
 
-  const history =
-    Array.isArray(
-      source.messageHistory
-    )
-      ? source.messageHistory
-          .map(normalizeHistoryMessage)
-          .filter(Boolean)
-          .slice(-MAX_HISTORY_MESSAGES)
-      : [];
+  let messageHistory = [];
 
+  try {
+    const parsed = JSON.parse(
+      row.message_history || '[]'
+    );
+
+    messageHistory = normalizeHistory(parsed);
+  } catch (err) {
+    logger.warn(
+      `Invalid message history for customer ${row.customer_id}`
+    );
+
+    messageHistory = [];
+  }
 
   return {
-    userId:
-      source.userId ??
-      userId ??
-      null,
+    customerId: row.customer_id,
 
-    customerName:
-      normalizeCustomerName(
-        source.customerName
-      ),
+    customerName: normalizeText(
+      row.customer_name,
+      MAX_NAME_LENGTH
+    ),
 
     selectedProduct:
-      normalizeSelectedProduct(
-        source.selectedProduct
-      ),
+      row.selected_product || null,
 
     conversationStage:
-      normalizeStage(
-        source.conversationStage
-      ),
-
-    conversationSummary:
-      normalizeSummary(
-        source.conversationSummary
-      ),
+      row.conversation_stage || 'Greeting',
 
     paymentStatus:
-      safeString(
-        source.paymentStatus
-      ).slice(0, 50) || null,
+      row.payment_status || 'none',
 
-    messageHistory:
-      history,
+    customerIntent:
+      row.customer_intent || 'unknown',
 
-    updatedAt:
-      source.updatedAt ||
-      Date.now()
+    conversationSummary:
+      normalizeText(
+        row.conversation_summary,
+        MAX_SUMMARY_LENGTH
+      ),
+
+    customerEmotion:
+      row.customer_emotion || 'neutral',
+
+    messageHistory,
+
+    lastUpdated:
+      Number(row.last_updated) || Date.now()
   };
-}
-
-
-/* =========================================================
-   DATABASE HELPERS
-========================================================= */
-
-function ensureDatabase() {
-  const db =
-    getDatabase();
-
-  if (!db) {
-    throw new Error(
-      'Database is not initialized.'
-    );
-  }
-
-  return db;
 }
 
 
@@ -223,95 +156,32 @@ function ensureDatabase() {
    GET CONVERSATION
 ========================================================= */
 
-function getConversation(userId) {
-  const db =
-    ensureDatabase();
+function getConversation(customerId) {
+  const id = normalizeCustomerId(customerId);
 
+  const row = db
+    .prepare(`
+      SELECT
+        customer_id,
+        customer_name,
+        selected_product,
+        conversation_stage,
+        payment_status,
+        customer_intent,
+        conversation_summary,
+        customer_emotion,
+        message_history,
+        last_updated
+      FROM conversations
+      WHERE customer_id = ?
+    `)
+    .get(id);
 
-  try {
-    const row =
-      db
-        .prepare(
-          `
-          SELECT *
-          FROM conversations
-          WHERE user_id = ?
-          LIMIT 1
-          `
-        )
-        .get(userId);
-
-
-    if (!row) {
-      return normalizeMemory(
-        {},
-        userId
-      );
-    }
-
-
-    let parsedHistory = [];
-
-
-    if (row.message_history) {
-      try {
-        parsedHistory =
-          JSON.parse(
-            row.message_history
-          );
-      } catch (err) {
-        logger.warn(
-          `Invalid message history for user ${userId}`
-        );
-
-        parsedHistory = [];
-      }
-    }
-
-
-    return normalizeMemory(
-      {
-        userId:
-          row.user_id,
-
-        customerName:
-          row.customer_name,
-
-        selectedProduct:
-          row.selected_product,
-
-        conversationStage:
-          row.conversation_stage,
-
-        conversationSummary:
-          row.conversation_summary,
-
-        paymentStatus:
-          row.payment_status,
-
-        messageHistory:
-          parsedHistory,
-
-        updatedAt:
-          row.updated_at
-      },
-      userId
-    );
-  } catch (err) {
-    logger.error(
-      `Failed to get conversation for user ${userId}`,
-      err
-    );
-
-    /*
-     * Return a clean memory object instead of
-     * crashing the complete Telegram update.
-     */
-    return normalizeMemory(
-      {},
-      userId
-    );
+  if (!row) {
+    return createDefaultConversation(id);
   }
+
+  return mapRowToConversation(row);
 }
 
 
@@ -319,91 +189,121 @@ function getConversation(userId) {
    SAVE CONVERSATION
 ========================================================= */
 
-function saveConversation(memory = {}) {
-  const db =
-    ensureDatabase();
-
-
-  const normalized =
-    normalizeMemory(
-      memory,
-      memory.userId
+function saveConversation(memory) {
+  if (!memory || !memory.customerId) {
+    throw new Error(
+      'Cannot save conversation without customerId'
     );
-
-
-  if (!normalized.userId) {
-    logger.warn(
-      'Cannot save conversation without userId.'
-    );
-
-    return false;
   }
 
+  const customerId =
+    normalizeCustomerId(memory.customerId);
 
-  try {
-    const historyJson =
-      JSON.stringify(
-        normalized.messageHistory
-      );
-
-
-    db
-      .prepare(
-        `
-        INSERT INTO conversations (
-          user_id,
-          customer_name,
-          selected_product,
-          conversation_stage,
-          conversation_summary,
-          payment_status,
-          message_history,
-          updated_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-
-        ON CONFLICT(user_id)
-        DO UPDATE SET
-          customer_name = excluded.customer_name,
-          selected_product = excluded.selected_product,
-          conversation_stage = excluded.conversation_stage,
-          conversation_summary = excluded.conversation_summary,
-          payment_status = excluded.payment_status,
-          message_history = excluded.message_history,
-          updated_at = excluded.updated_at
-        `
-      )
-      .run(
-        normalized.userId,
-        normalized.customerName,
-        normalized.selectedProduct,
-        normalized.conversationStage,
-        normalized.conversationSummary,
-        normalized.paymentStatus,
-        historyJson,
-        Date.now()
-      );
-
-
-    /*
-     * Keep the passed object synchronized with the
-     * normalized state used by the database.
-     */
-    Object.assign(
-      memory,
-      normalized
+  const customerName =
+    normalizeText(
+      memory.customerName,
+      MAX_NAME_LENGTH
     );
 
+  const selectedProduct =
+    memory.selectedProduct || null;
 
-    return true;
-  } catch (err) {
-    logger.error(
-      `Failed to save conversation for user ${normalized.userId}`,
-      err
+  const conversationStage =
+    normalizeText(
+      memory.conversationStage || 'Greeting',
+      100
     );
 
-    return false;
-  }
+  const paymentStatus =
+    normalizeText(
+      memory.paymentStatus || 'none',
+      100
+    );
+
+  const customerIntent =
+    normalizeText(
+      memory.customerIntent || 'unknown',
+      100
+    );
+
+  const conversationSummary =
+    normalizeText(
+      memory.conversationSummary || '',
+      MAX_SUMMARY_LENGTH
+    );
+
+  const customerEmotion =
+    normalizeText(
+      memory.customerEmotion || 'neutral',
+      100
+    );
+
+  const messageHistory =
+    normalizeHistory(
+      memory.messageHistory
+    );
+
+  const lastUpdated =
+    Date.now();
+
+
+  db.prepare(`
+    INSERT INTO conversations (
+      customer_id,
+      customer_name,
+      selected_product,
+      conversation_stage,
+      payment_status,
+      customer_intent,
+      conversation_summary,
+      customer_emotion,
+      message_history,
+      last_updated
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+
+    ON CONFLICT(customer_id)
+    DO UPDATE SET
+      customer_name = excluded.customer_name,
+      selected_product = excluded.selected_product,
+      conversation_stage = excluded.conversation_stage,
+      payment_status = excluded.payment_status,
+      customer_intent = excluded.customer_intent,
+      conversation_summary = excluded.conversation_summary,
+      customer_emotion = excluded.customer_emotion,
+      message_history = excluded.message_history,
+      last_updated = excluded.last_updated
+  `).run(
+    customerId,
+    customerName,
+    selectedProduct,
+    conversationStage,
+    paymentStatus,
+    customerIntent,
+    conversationSummary,
+    customerEmotion,
+    JSON.stringify(messageHistory),
+    lastUpdated
+  );
+
+
+  /*
+   * Keep the in-memory object synchronized with the
+   * normalized values that were actually saved.
+   */
+  memory.customerId = customerId;
+  memory.customerName = customerName;
+  memory.selectedProduct = selectedProduct;
+  memory.conversationStage = conversationStage;
+  memory.paymentStatus = paymentStatus;
+  memory.customerIntent = customerIntent;
+  memory.conversationSummary = conversationSummary;
+  memory.customerEmotion = customerEmotion;
+  memory.messageHistory = messageHistory;
+  memory.lastUpdated = lastUpdated;
+
+
+  return memory;
 }
 
 
@@ -416,78 +316,38 @@ function addMessageToHistory(
   role,
   content
 ) {
-  if (
-    !memory ||
-    typeof memory !== 'object'
-  ) {
-    return false;
+  if (!memory) {
+    return null;
   }
 
-
-  const normalizedRole =
-    safeString(role);
-
-  const normalizedContent =
-    safeString(content);
-
-
-  if (
-    !normalizedRole ||
-    !normalizedContent
-  ) {
-    return false;
-  }
-
-
-  const message =
-    normalizeHistoryMessage({
-      role:
-        normalizedRole,
-      content:
-        normalizedContent
-    });
-
-
-  if (!message) {
-    return false;
-  }
-
-
-  if (
-    !Array.isArray(
-      memory.messageHistory
-    )
-  ) {
+  if (!Array.isArray(memory.messageHistory)) {
     memory.messageHistory = [];
   }
 
+  const normalizedRole =
+    normalizeText(role, 30);
 
-  /*
-   * Prevent accidental duplicate consecutive
-   * messages from polluting the AI context.
-   */
-  const lastMessage =
-    memory.messageHistory[
-      memory.messageHistory.length - 1
-    ];
+  const normalizedContent =
+    normalizeText(
+      content,
+      MAX_MESSAGE_LENGTH
+    );
 
-
-  if (
-    lastMessage &&
-    lastMessage.role === message.role &&
-    lastMessage.content === message.content
-  ) {
-    return false;
+  if (!normalizedRole || !normalizedContent) {
+    return memory;
   }
 
 
-  memory.messageHistory.push(
-    message
-  );
+  memory.messageHistory.push({
+    role: normalizedRole,
+    content: normalizedContent,
+    timestamp: Date.now()
+  });
 
 
   /*
-   * Keep only the latest messages.
+   * Keep only the most recent messages.
+   * This prevents the AI context from growing forever.
    */
   if (
     memory.messageHistory.length >
@@ -500,11 +360,33 @@ function addMessageToHistory(
   }
 
 
-  memory.updatedAt =
-    Date.now();
+  memory.lastUpdated = Date.now();
+
+  return memory;
+}
 
 
-  return true;
+/* =========================================================
+   UPDATE MESSAGE HISTORY + SAVE
+========================================================= */
+
+function addAndSaveMessage(
+  customerId,
+  role,
+  content
+) {
+  const memory =
+    getConversation(customerId);
+
+  addMessageToHistory(
+    memory,
+    role,
+    content
+  );
+
+  saveConversation(memory);
+
+  return memory;
 }
 
 
@@ -512,51 +394,17 @@ function addMessageToHistory(
    CLEAR MESSAGE HISTORY
 ========================================================= */
 
-function clearMessageHistory(memory) {
-  if (
-    !memory ||
-    typeof memory !== 'object'
-  ) {
-    return false;
-  }
-
+function clearMessageHistory(customerId) {
+  const memory =
+    getConversation(customerId);
 
   memory.messageHistory = [];
 
-  memory.updatedAt =
-    Date.now();
+  memory.lastUpdated = Date.now();
 
+  saveConversation(memory);
 
-  return true;
-}
-
-
-/* =========================================================
-   UPDATE CONVERSATION SUMMARY
-========================================================= */
-
-function updateConversationSummary(
-  memory,
-  summary
-) {
-  if (
-    !memory ||
-    typeof memory !== 'object'
-  ) {
-    return false;
-  }
-
-
-  memory.conversationSummary =
-    normalizeSummary(
-      summary
-    );
-
-  memory.updatedAt =
-    Date.now();
-
-
-  return true;
+  return memory;
 }
 
 
@@ -565,27 +413,21 @@ function updateConversationSummary(
 ========================================================= */
 
 function updateCustomerName(
-  memory,
+  customerId,
   customerName
 ) {
-  if (
-    !memory ||
-    typeof memory !== 'object'
-  ) {
-    return false;
-  }
-
+  const memory =
+    getConversation(customerId);
 
   memory.customerName =
-    normalizeCustomerName(
-      customerName
+    normalizeText(
+      customerName,
+      MAX_NAME_LENGTH
     );
 
-  memory.updatedAt =
-    Date.now();
+  saveConversation(memory);
 
-
-  return true;
+  return memory;
 }
 
 
@@ -594,27 +436,20 @@ function updateCustomerName(
 ========================================================= */
 
 function updateSelectedProduct(
-  memory,
+  customerId,
   productCode
 ) {
-  if (
-    !memory ||
-    typeof memory !== 'object'
-  ) {
-    return false;
-  }
-
+  const memory =
+    getConversation(customerId);
 
   memory.selectedProduct =
-    normalizeSelectedProduct(
-      productCode
-    );
+    productCode
+      ? normalizeText(productCode, 100)
+      : null;
 
-  memory.updatedAt =
-    Date.now();
+  saveConversation(memory);
 
-
-  return true;
+  return memory;
 }
 
 
@@ -623,27 +458,21 @@ function updateSelectedProduct(
 ========================================================= */
 
 function updateConversationStage(
-  memory,
+  customerId,
   stage
 ) {
-  if (
-    !memory ||
-    typeof memory !== 'object'
-  ) {
-    return false;
-  }
-
+  const memory =
+    getConversation(customerId);
 
   memory.conversationStage =
-    normalizeStage(
-      stage
+    normalizeText(
+      stage || 'Greeting',
+      100
     );
 
-  memory.updatedAt =
-    Date.now();
+  saveConversation(memory);
 
-
-  return true;
+  return memory;
 }
 
 
@@ -652,80 +481,132 @@ function updateConversationStage(
 ========================================================= */
 
 function updatePaymentStatus(
-  memory,
+  customerId,
   status
 ) {
-  if (
-    !memory ||
-    typeof memory !== 'object'
-  ) {
-    return false;
-  }
-
+  const memory =
+    getConversation(customerId);
 
   memory.paymentStatus =
-    safeString(
-      status
-    ).slice(0, 50) || null;
-
-  memory.updatedAt =
-    Date.now();
-
-
-  return true;
-}
-
-
-/* =========================================================
-   DELETE / RESET MEMORY
-========================================================= */
-
-function resetConversation(userId) {
-  const db =
-    ensureDatabase();
-
-
-  try {
-    db
-      .prepare(
-        `
-        DELETE FROM conversations
-        WHERE user_id = ?
-        `
-      )
-      .run(userId);
-
-
-    return true;
-  } catch (err) {
-    logger.error(
-      `Failed to reset conversation for user ${userId}`,
-      err
+    normalizeText(
+      status || 'none',
+      100
     );
 
-    return false;
-  }
+  saveConversation(memory);
+
+  return memory;
 }
 
 
 /* =========================================================
-   EXPORTS
+   UPDATE CUSTOMER INTENT
+========================================================= */
+
+function updateCustomerIntent(
+  customerId,
+  intent
+) {
+  const memory =
+    getConversation(customerId);
+
+  memory.customerIntent =
+    normalizeText(
+      intent || 'unknown',
+      100
+    );
+
+  saveConversation(memory);
+
+  return memory;
+}
+
+
+/* =========================================================
+   UPDATE CUSTOMER EMOTION
+========================================================= */
+
+function updateCustomerEmotion(
+  customerId,
+  emotion
+) {
+  const memory =
+    getConversation(customerId);
+
+  memory.customerEmotion =
+    normalizeText(
+      emotion || 'neutral',
+      100
+    );
+
+  saveConversation(memory);
+
+  return memory;
+}
+
+
+/* =========================================================
+   UPDATE CONVERSATION SUMMARY
+========================================================= */
+
+function updateConversationSummary(
+  customerId,
+  summary
+) {
+  const memory =
+    getConversation(customerId);
+
+  memory.conversationSummary =
+    normalizeText(
+      summary || '',
+      MAX_SUMMARY_LENGTH
+    );
+
+  saveConversation(memory);
+
+  return memory;
+}
+
+
+/* =========================================================
+   RESET CONVERSATION
+========================================================= */
+
+function resetConversation(customerId) {
+  const memory =
+    createDefaultConversation(
+      customerId
+    );
+
+  saveConversation(memory);
+
+  return memory;
+}
+
+
+/* =========================================================
+   EXPORT
 ========================================================= */
 
 module.exports = {
   getConversation,
   saveConversation,
+
   addMessageToHistory,
+  addAndSaveMessage,
 
   clearMessageHistory,
-  updateConversationSummary,
+
   updateCustomerName,
   updateSelectedProduct,
   updateConversationStage,
   updatePaymentStatus,
+  updateCustomerIntent,
+  updateCustomerEmotion,
+  updateConversationSummary,
 
   resetConversation,
 
-  normalizeMemory,
-  normalizeHistoryMessage
+  normalizeHistory,
+  normalizeText
 };
