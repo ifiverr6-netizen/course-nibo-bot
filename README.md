@@ -1,19 +1,35 @@
-# Course Nibo Final (Production)
+# Course Nibo Bot
 
-Full original template + menus + payment flow + Admin  
-+ Sinthiya AI (soft + professional) with SQLite memory
+A production-focused Telegram commerce bot for selling digital courses and subscriptions.
+
+The project includes:
+
+- Telegram inline menu
+- Course catalogue
+- Numbered course list
+- Product/course cards
+- Course images
+- Payment workflow
+- Payment screenshot submission
+- Transaction ID verification
+- Admin approval/rejection
+- SQLite persistence
+- Customer conversation memory
+- User state management
+- Duplicate transaction protection
+- Order tracking
+- Optional Sinthiya AI
+- Express health endpoint
+- Graceful shutdown
+- Centralized logging
+
+---
 
 ## Features
-- All original menus, product cards, screenshot & TRX flow
-- Admin Approve / Reject
-- SQLite persistent memory
-- Sinthiya AI for free-text
-- Clean modular architecture
 
-## Setup
-```bash
-npm install
-cp .env.example .env
-# fill .env with your values
-npm start
-```
+### Course System
+
+Courses are managed from:
+
+```text
+src/domain/products.js
