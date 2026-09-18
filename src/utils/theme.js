@@ -1,5 +1,8 @@
-// ★ Central theme file — সব icon/status এক জায়গায়, ভবিষ্যতে বদলাতে হলে শুধু এই ফাইলেই এডিট করলেই হবে
-// bot.js / promptBuilder.js যেখানেই emoji ব্যবহার হয়, এখান থেকে import করে ব্যবহার করা উচিত
+/*
+ * =========================================================
+ * TELEGRAM UI THEME
+ * =========================================================
+ */
 
 const ICONS = {
   course: '📚',
@@ -10,18 +13,115 @@ const ICONS = {
   support: '📞',
   product: '📦',
   celebrate: '🎉',
-  time: '⏱️'
+  time: '⏱️',
+
+  pending: '🟡',
+  delivered: '🟢',
+  rejected: '🔴',
+
+  success: '✅',
+  error: '❌',
+  warning: '⚠️',
+  info: 'ℹ️'
 };
 
-// raw DB status string → user-facing colored badge
-// ⚠️ raw status string (updateOrderStatus / findPendingOrder-এ ব্যবহৃত) অপরিবর্তিত রাখতে হবে,
-// শুধু ডিসপ্লের সময় রঙিন ব্যাজ দেখানো হবে
-function statusBadge(rawStatus) {
-  if (!rawStatus) return rawStatus;
-  if (rawStatus.startsWith('Pending')) return `🟡 <b>${rawStatus}</b>`;
-  if (rawStatus.startsWith('Delivered')) return `🟢 <b>${rawStatus}</b>`;
-  if (rawStatus.startsWith('Rejected')) return `🔴 <b>${rawStatus}</b>`;
-  return `<b>${rawStatus}</b>`;
+
+/*
+ * =========================================================
+ * STATUS BADGE
+ * =========================================================
+ *
+ * IMPORTANT:
+ * This function only changes presentation.
+ *
+ * Database status remains unchanged.
+ */
+
+function statusBadge(
+  rawStatus
+) {
+  if (
+    rawStatus === null ||
+    rawStatus === undefined
+  ) {
+    return '';
+  }
+
+  const status =
+    String(
+      rawStatus
+    ).trim();
+
+  if (!status) {
+    return '';
+  }
+
+
+  if (
+    status.startsWith(
+      'Pending'
+    )
+  ) {
+    return (
+      `${ICONS.pending} ` +
+      `<b>${status}</b>`
+    );
+  }
+
+
+  if (
+    status.startsWith(
+      'Delivered'
+    )
+  ) {
+    return (
+      `${ICONS.delivered} ` +
+      `<b>${status}</b>`
+    );
+  }
+
+
+  if (
+    status.startsWith(
+      'Rejected'
+    )
+  ) {
+    return (
+      `${ICONS.rejected} ` +
+      `<b>${status}</b>`
+    );
+  }
+
+
+  if (
+    status
+      .toLowerCase()
+      .includes('cancel')
+  ) {
+    return (
+      `${ICONS.rejected} ` +
+      `<b>${status}</b>`
+    );
+  }
+
+
+  if (
+    status
+      .toLowerCase()
+      .includes('process')
+  ) {
+    return (
+      `${ICONS.pending} ` +
+      `<b>${status}</b>`
+    );
+  }
+
+
+  return `<b>${status}</b>`;
 }
 
-module.exports = { ICONS, statusBadge };
+
+module.exports = {
+  ICONS,
+  statusBadge
+};
