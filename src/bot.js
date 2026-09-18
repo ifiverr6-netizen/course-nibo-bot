@@ -267,7 +267,7 @@ function productCardCaption(product, orderId) {
   return `🛒 <b>Order Summary</b>
 
 📦 <b>Product:</b> <b>${title}</b>
-💵 <b>Price:</b> <b>${price} BDT</b>
+💵 <b>Price:</b> <b>${price} </b>
 🆔 <b>Order ID:</b> <code>${escapeHtml(orderId)}</code>
 
 ${DIVIDER}
