@@ -54,7 +54,10 @@ function coursesKeyboard() {
   ]);
 
   buttons.push([
-    Markup.button.callback('🔙 মূল মেনুতে ফিরে যান', 'main_menu')
+    Markup.button.callback(
+      '🔙 মূল মেনুতে ফিরে যান',
+      'main_menu'
+    )
   ]);
 
   return Markup.inlineKeyboard(buttons);
