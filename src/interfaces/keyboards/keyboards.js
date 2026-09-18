@@ -1,57 +1,125 @@
 const { Markup } = require('telegraf');
+
 const {
   getCourseProducts,
   getSubscriptionProducts
 } = require('../../domain/products');
 
-/**
- * Main menu
- * Clean, compact and professional layout.
+
+/*
+ * =========================================================
+ * MAIN MENU
+ * =========================================================
  */
+
 function mainMenuKeyboard() {
   return Markup.inlineKeyboard([
     [
-      Markup.button.callback('📚 কোর্সসমূহ', 'view_courses'),
-      Markup.button.callback('⭐ সাবস্ক্রিপশন', 'view_subs')
+      Markup.button.callback(
+        '📚 কোর্সসমূহ',
+        'view_courses'
+      ),
+      Markup.button.callback(
+        '⭐ সাবস্ক্রিপশন',
+        'view_subs'
+      )
     ],
     [
-      Markup.button.callback('📦 আমার অর্ডার', 'my_orders'),
-      Markup.button.callback('❓ FAQ', 'faq')
+      Markup.button.callback(
+        '📦 আমার অর্ডার',
+        'my_orders'
+      ),
+      Markup.button.callback(
+        '❓ FAQ',
+        'faq'
+      )
     ],
     [
-      Markup.button.callback('🎧 সাপোর্ট', 'support')
+      Markup.button.callback(
+        '🎧 সাপোর্ট',
+        'support'
+      )
     ]
   ]);
 }
 
-/**
- * Single back-to-menu button
+
+/*
+ * =========================================================
+ * BACK TO MAIN MENU
+ * =========================================================
  */
+
 function backToMenuKeyboard() {
   return Markup.inlineKeyboard([
-    [Markup.button.callback('🔙 মূল মেনুতে ফিরে যান', 'main_menu')]
+    [
+      Markup.button.callback(
+        '🔙 মূল মেনুতে ফিরে যান',
+        'main_menu'
+      )
+    ]
   ]);
 }
 
-/**
- * Course list
- *
- * Course order comes from products.js.
- * Every course is numbered automatically:
- * 1, 2, 3, 4...
- *
- * Callback format is kept compatible with bot.js:
- * buy_<product_code>
- */
-function coursesKeyboard() {
-  const courses = getCourseProducts();
 
-  const buttons = courses.map((product, index) => [
-    Markup.button.callback(
-      `${index + 1}. ${product.shortTitle || product.title}`,
-      `buy_${product.code}`
-    )
-  ]);
+/*
+ * =========================================================
+ * COURSES KEYBOARD
+ * =========================================================
+ *
+ * Layout:
+ *
+ * 1 | 2
+ * 3 | 4
+ * 5 | 6
+ *
+ */
+
+function coursesKeyboard() {
+  const courses =
+    getCourseProducts();
+
+  const buttons = [];
+
+  for (
+    let i = 0;
+    i < courses.length;
+    i += 2
+  ) {
+    const row = [];
+
+    const first =
+      courses[i];
+
+    const second =
+      courses[i + 1];
+
+
+    if (first) {
+      row.push(
+        Markup.button.callback(
+          `${i + 1}. ${first.shortTitle || first.title}`,
+          `buy_${first.code}`
+        )
+      );
+    }
+
+
+    if (second) {
+      row.push(
+        Markup.button.callback(
+          `${i + 2}. ${second.shortTitle || second.title}`,
+          `buy_${second.code}`
+        )
+      );
+    }
+
+
+    if (row.length) {
+      buttons.push(row);
+    }
+  }
+
 
   buttons.push([
     Markup.button.callback(
@@ -60,37 +128,85 @@ function coursesKeyboard() {
     )
   ]);
 
-  return Markup.inlineKeyboard(buttons);
+
+  return Markup.inlineKeyboard(
+    buttons
+  );
 }
 
-/**
- * Subscription list
- *
- * Same numbering system as courses.
- */
-function subsKeyboard() {
-  const subscriptions = getSubscriptionProducts();
 
-  const buttons = subscriptions.map((product, index) => [
+/*
+ * =========================================================
+ * SUBSCRIPTIONS KEYBOARD
+ * =========================================================
+ */
+
+function subsKeyboard() {
+  const subscriptions =
+    getSubscriptionProducts();
+
+  const buttons = [];
+
+  for (
+    let i = 0;
+    i < subscriptions.length;
+    i += 2
+  ) {
+    const row = [];
+
+    const first =
+      subscriptions[i];
+
+    const second =
+      subscriptions[i + 1];
+
+
+    if (first) {
+      row.push(
+        Markup.button.callback(
+          `${i + 1}. ${first.shortTitle || first.title}`,
+          `buy_${first.code}`
+        )
+      );
+    }
+
+
+    if (second) {
+      row.push(
+        Markup.button.callback(
+          `${i + 2}. ${second.shortTitle || second.title}`,
+          `buy_${second.code}`
+        )
+      );
+    }
+
+
+    if (row.length) {
+      buttons.push(row);
+    }
+  }
+
+
+  buttons.push([
     Markup.button.callback(
-      `${index + 1}. ${product.shortTitle || product.title}`,
-      `buy_${product.code}`
+      '🔙 মূল মেনুতে ফিরে যান',
+      'main_menu'
     )
   ]);
 
-  buttons.push([
-    Markup.button.callback('🔙 মূল মেনুতে ফিরে যান', 'main_menu')
-  ]);
 
-  return Markup.inlineKeyboard(buttons);
+  return Markup.inlineKeyboard(
+    buttons
+  );
 }
 
-/**
- * Product card action buttons
- *
- * Existing callback names are preserved so bot.js
- * does not break.
+
+/*
+ * =========================================================
+ * PRODUCT ACTIONS
+ * =========================================================
  */
+
 function productActionsKeyboard() {
   return Markup.inlineKeyboard([
     [
@@ -120,10 +236,16 @@ function productActionsKeyboard() {
   ]);
 }
 
-/**
- * Admin order approval controls
+
+/*
+ * =========================================================
+ * ADMIN APPROVAL
+ * =========================================================
  */
-function adminApprovalKeyboard(orderId) {
+
+function adminApprovalKeyboard(
+  orderId
+) {
   return Markup.inlineKeyboard([
     [
       Markup.button.callback(
@@ -137,6 +259,7 @@ function adminApprovalKeyboard(orderId) {
     ]
   ]);
 }
+
 
 module.exports = {
   mainMenuKeyboard,
