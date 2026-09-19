@@ -12,9 +12,14 @@ const {
    CONFIGURATION
 ========================================================= */
 
-const GROQ_MODEL = 'openai/gpt-oss-120b';
+const GROQ_MODEL =
+  'openai/gpt-oss-120b';
 
-const OPENROUTER_MODEL = 'openrouter/free';
+const OPENROUTER_MODEL =
+  'openrouter/free';
+
+const OPENROUTER_URL =
+  'https://openrouter.ai/api/v1/chat/completions';
 
 const TEMPERATURE = 0.6;
 
@@ -26,7 +31,7 @@ const MAX_USER_MESSAGE_LENGTH = 4000;
 
 
 /* =========================================================
-   API CLIENTS
+   API KEYS
 ========================================================= */
 
 const groq =
@@ -37,13 +42,8 @@ const groq =
     : null;
 
 
-/*
- * OpenRouter API key Render Environment Variable থেকে নেওয়া হবে।
- *
- * Render → Environment → OPENROUTER_API_KEY
- */
 const openRouterApiKey =
-  process.env.OPENROUTER_API_KEY || '';
+  process.env.OPENROUTER_API_KEY || null;
 
 
 /* =========================================================
@@ -56,13 +56,18 @@ function toSafeString(value = '') {
 
 
 function normalizeUserMessage(message = '') {
-  const text = toSafeString(message);
+
+  const text =
+    toSafeString(message);
 
   if (!text) {
     return '';
   }
 
-  if (text.length <= MAX_USER_MESSAGE_LENGTH) {
+  if (
+    text.length <=
+    MAX_USER_MESSAGE_LENGTH
+  ) {
     return text;
   }
 
@@ -73,48 +78,68 @@ function normalizeUserMessage(message = '') {
 }
 
 
-function extractAssistantReply(completion) {
+function extractAssistantReply(
+  completion
+) {
+
   if (!completion) {
     return null;
   }
 
+
   const choices =
-    Array.isArray(completion.choices)
+    Array.isArray(
+      completion.choices
+    )
       ? completion.choices
       : [];
+
 
   if (!choices.length) {
     return null;
   }
 
+
   const message =
     choices[0]?.message;
+
 
   if (!message) {
     return null;
   }
 
+
   const content =
     message.content;
 
+
   if (
-    typeof content !== 'string'
+    typeof content !==
+    'string'
   ) {
     return null;
   }
 
+
   const reply =
     content.trim();
+
 
   if (!reply) {
     return null;
   }
 
+
   return reply;
 }
 
 
-function createAbortController() {
+/* =========================================================
+   TIMEOUT
+========================================================= */
+
+function createTimeout() {
+
   if (
     typeof AbortController ===
     'undefined'
@@ -122,104 +147,162 @@ function createAbortController() {
     return null;
   }
 
-  return new AbortController();
+
+  const controller =
+    new AbortController();
+
+
+  const timer =
+    setTimeout(
+      () => {
+        controller.abort();
+      },
+      REQUEST_TIMEOUT_MS
+    );
+
+
+  return {
+    controller,
+    timer
+  };
 }
 
 
 /* =========================================================
-   GROQ AI
+   GROQ
 ========================================================= */
 
-async function generateGroqReply(messages) {
+async function generateGroqReply(
+  messages
+) {
+
   if (!groq) {
+
     logger.warn(
-      'Groq API unavailable: GROQ_API_KEY is not configured.'
+      'Groq unavailable: GROQ_API_KEY is not configured.'
     );
 
     return null;
   }
 
-  const controller =
-    createAbortController();
 
-  const timer =
-    controller
-      ? setTimeout(() => {
-          controller.abort();
-        }, REQUEST_TIMEOUT_MS)
-      : null;
+  const timeout =
+    createTimeout();
+
 
   try {
+
     const requestOptions = {
-      model: GROQ_MODEL,
-      temperature: TEMPERATURE,
-      max_tokens: MAX_TOKENS,
+
+      model:
+        GROQ_MODEL,
+
+      temperature:
+        TEMPERATURE,
+
+      max_tokens:
+        MAX_TOKENS,
+
       messages
     };
 
-    if (controller?.signal) {
+
+    if (
+      timeout?.controller?.signal
+    ) {
+
       requestOptions.signal =
-        controller.signal;
+        timeout.controller.signal;
+
     }
+
 
     const completion =
       await groq.chat.completions.create(
         requestOptions
       );
 
+
     const reply =
       extractAssistantReply(
         completion
       );
 
+
     if (!reply) {
+
       logger.warn(
         'Groq returned an empty response.'
       );
 
       return null;
+
     }
 
+
+    logger.info(
+      'Sinthiya AI replied using Groq.'
+    );
+
+
     return reply;
+
   } catch (err) {
+
     if (
       err?.name ===
       'AbortError'
     ) {
+
       logger.warn(
         'Groq request timed out.'
       );
+
     } else {
+
       const status =
         err?.status ||
         err?.statusCode ||
         err?.response?.status ||
         null;
 
-      const message =
-        err?.message ||
-        'Unknown Groq error';
 
       logger.error(
-        `Groq AI error${status ? ` (${status})` : ''}: ${message}`
+        `Groq AI error${status ? ` (${status})` : ''}: ${
+          err?.message ||
+          'Unknown error'
+        }`
       );
+
     }
 
+
     return null;
+
   } finally {
-    if (timer) {
-      clearTimeout(timer);
+
+    if (timeout?.timer) {
+
+      clearTimeout(
+        timeout.timer
+      );
+
     }
+
   }
 }
 
 
 /* =========================================================
-   OPENROUTER FREE AI
+   OPENROUTER FREE
 ========================================================= */
 
-async function generateOpenRouterReply(messages) {
+async function generateOpenRouterReply(
+  messages
+) {
+
   if (!openRouterApiKey) {
+
     logger.warn(
       'OpenRouter unavailable: OPENROUTER_API_KEY is not configured.'
     );
@@ -227,70 +310,87 @@ async function generateOpenRouterReply(messages) {
     return null;
   }
 
-  const controller =
-    createAbortController();
 
-  const timer =
-    controller
-      ? setTimeout(() => {
-          controller.abort();
-        }, REQUEST_TIMEOUT_MS)
-      : null;
+  const timeout =
+    createTimeout();
+
 
   try {
+
     const response =
       await fetch(
-        'https://openrouter.ai/api/v1/chat/completions',
+        OPENROUTER_URL,
         {
-          method: 'POST',
+          method:
+            'POST',
 
           headers: {
-            'Authorization':
+
+            Authorization:
               `Bearer ${openRouterApiKey}`,
 
             'Content-Type':
               'application/json',
 
-            'HTTP-Referer':
-              'https://course-nibo-bot.onrender.com',
-
             'X-Title':
               'Course Nibo Sinthiya AI'
+
           },
 
-          body: JSON.stringify({
-            model: OPENROUTER_MODEL,
-            temperature: TEMPERATURE,
-            max_tokens: MAX_TOKENS,
-            messages
-          }),
+          body:
+            JSON.stringify({
+
+              model:
+                OPENROUTER_MODEL,
+
+              temperature:
+                TEMPERATURE,
+
+              max_tokens:
+                MAX_TOKENS,
+
+              messages
+
+            }),
 
           signal:
-            controller?.signal
+            timeout?.controller?.signal
+
         }
       );
 
+
     if (!response.ok) {
+
       const errorText =
-        await response.text()
+        await response
+          .text()
           .catch(() => '');
 
+
       logger.error(
-        `OpenRouter API error (${response.status}): ${errorText.slice(0, 500)}`
+        `OpenRouter API error (${response.status}): ${
+          errorText.slice(0, 500)
+        }`
       );
+
 
       return null;
     }
 
+
     const completion =
       await response.json();
+
 
     const reply =
       extractAssistantReply(
         completion
       );
 
+
     if (!reply) {
+
       logger.warn(
         'OpenRouter returned an empty response.'
       );
@@ -298,64 +398,88 @@ async function generateOpenRouterReply(messages) {
       return null;
     }
 
+
+    logger.info(
+      'Sinthiya AI replied using OpenRouter Free.'
+    );
+
+
     return reply;
+
   } catch (err) {
+
     if (
       err?.name ===
       'AbortError'
     ) {
+
       logger.warn(
         'OpenRouter request timed out.'
       );
+
     } else {
+
       logger.error(
         `OpenRouter AI error: ${
           err?.message ||
           'Unknown error'
         }`
       );
+
     }
 
+
     return null;
+
   } finally {
-    if (timer) {
-      clearTimeout(timer);
+
+    if (timeout?.timer) {
+
+      clearTimeout(
+        timeout.timer
+      );
+
     }
+
   }
 }
 
 
 /* =========================================================
-   MAIN SINTHIYA FUNCTION
+   MAIN AI FUNCTION
 ========================================================= */
 
 async function generateReply(
   memory = {},
   userMessage = ''
 ) {
+
   const normalizedMessage =
     normalizeUserMessage(
       userMessage
     );
 
+
   if (!normalizedMessage) {
+
     return null;
+
   }
 
 
-  /* -------------------------------------------------------
-     Build AI conversation
-  ------------------------------------------------------- */
-
   let messages;
 
+
   try {
+
     messages =
       buildMessages(
         memory,
         normalizedMessage
       );
+
   } catch (err) {
+
     logger.error(
       `Failed to build Sinthiya AI messages: ${
         err?.message ||
@@ -363,7 +487,9 @@ async function generateReply(
       }`
     );
 
+
     return null;
+
   }
 
 
@@ -371,69 +497,68 @@ async function generateReply(
     !Array.isArray(messages) ||
     messages.length === 0
   ) {
+
     logger.warn(
       'Sinthiya AI received an empty message list.'
     );
 
+
     return null;
+
   }
 
 
-  /* -------------------------------------------------------
-     1. Try Groq first
-  ------------------------------------------------------- */
+  /* =======================================================
+     1. GROQ
+  ======================================================= */
 
   const groqReply =
     await generateGroqReply(
       messages
     );
 
+
   if (groqReply) {
-    logger.info(
-      'Sinthiya replied using Groq AI.'
-    );
 
     return groqReply;
+
   }
 
 
-  /* -------------------------------------------------------
-     2. Groq failed → OpenRouter Free fallback
-  ------------------------------------------------------- */
+  /* =======================================================
+     2. OPENROUTER FREE FALLBACK
+  ======================================================= */
 
   logger.warn(
     'Groq failed. Trying OpenRouter Free fallback...'
   );
+
 
   const openRouterReply =
     await generateOpenRouterReply(
       messages
     );
 
+
   if (openRouterReply) {
-    logger.info(
-      'Sinthiya replied using OpenRouter Free AI.'
-    );
 
     return openRouterReply;
+
   }
 
 
-  /* -------------------------------------------------------
-     3. Both AI providers failed
-  ------------------------------------------------------- */
+  /* =======================================================
+     ALL PROVIDERS FAILED
+  ======================================================= */
 
   logger.error(
     'All Sinthiya AI providers failed.'
   );
 
+
   return null;
 }
 
-
-/* =========================================================
-   EXPORT
-========================================================= */
 
 module.exports = {
   generateReply
